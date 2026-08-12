@@ -1,0 +1,14 @@
+### Systems
+emi.totems.system.welcome=§aTotems Apilables - v%s%s \n§7Por §eEmiliocrack1355
+emi.totems.system.notScore=§eAdvertencia - No existe el score de Totems\n§7Creando uno...
+
+
+### Totems
+emi.totems.useTotem.notEnought=§c%s no tenía totems suficientes
+emi.totems.useTotem.fail=§7%s ha usado un %s con probabilidad %s > %s\n§cHa muerto...
+emi.totems.useTotem.prob=§7%s ha usado un %s con probabilidad %s > %s
+emi.totems.useTotem=§7>> %s ha usado un %s
+emi.totems.useTotem.void=§cEl Void Totem solo funciona en el Vacío
+emi.totems.useTotem.void-normal=§cEl %s no funciona en el Vacío
+
+emi.totems.saveSpawn=§aPunto de reaparición guardado en %s

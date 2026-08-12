@@ -1,0 +1,14 @@
+### Systems
+emi.totems.system.welcome=§aStackeable Totems - v%s%s \n§7By §eEmiliocrack1355
+emi.totems.system.notScore=§eWarning - The Totems score does not exist\n§7Creating one...
+
+
+### Totems
+emi.totems.useTotem.notEnought=§c%s did not have enough totems
+emi.totems.useTotem.fail=§7%s used a %s with probability %s > %s\n§cThey died...
+emi.totems.useTotem.prob=§7%s used a %s with probability %s > %s
+emi.totems.useTotem=§7>> %s used a %s
+emi.totems.useTotem.void=§cThe Void Totem only works in the Void
+emi.totems.useTotem.void-normal=§c%s does not work in the Void
+
+emi.totems.saveSpawn=§aSpawnpoint saved at %s
