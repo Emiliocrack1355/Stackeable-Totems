@@ -1,33 +1,33 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const cp = require('child_process');
-const AdmZip = require('adm-zip');
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+const cp = require("child_process");
+const AdmZip = require("adm-zip");
 
-const BaseExportUtilAddons = require('../base');
+const BaseExportUtilAddons = require("../base");
 
 class CompileAddonsUtil extends BaseExportUtilAddons {
     getTsFiles(dir, files = []) {
-        if (!fs.existsSync(dir)) { 
-            return files
-        };
+        if (!fs.existsSync(dir)) {
+            return files;
+        }
 
         for (const f of fs.readdirSync(dir)) {
             const full = path.join(dir, f);
 
             if (fs.statSync(full).isDirectory()) {
                 this.getTsFiles(full, files);
-            } else if (f.endsWith('.ts')) {
+            } else if (f.endsWith(".ts")) {
                 files.push(`"${full}"`);
-            };
+            }
         }
 
         return files;
     }
 
     compilePack(packDir) {
-        const srcDir = path.join(packDir, 'src');
-        const scriptsDir = path.join(packDir, 'scripts');
+        const srcDir = path.join(packDir, "src");
+        const scriptsDir = path.join(packDir, "scripts");
 
         if (!fs.existsSync(srcDir)) return;
 
@@ -43,10 +43,10 @@ class CompileAddonsUtil extends BaseExportUtilAddons {
 
         console.log(`🔨 Compilando (Addon con Chunks) ${path.basename(packDir)}...`);
 
-        const cmd = `esbuild ${tsFiles.join(' ')} --bundle --splitting --format=esm --target=es2020 --outdir="${scriptsDir}" ${this.externals} --minify`;
+        const cmd = `esbuild ${tsFiles.join(" ")} --bundle --splitting --format=esm --target=es2020 --outdir="${scriptsDir}" ${this.externals} --minify`;
 
         try {
-            cp.execSync(cmd, { stdio: 'inherit', cwd: this.rootDir });
+            cp.execSync(cmd, { stdio: "inherit", cwd: this.rootDir });
         } catch {
             console.error(`❌ Error compilando ${path.basename(packDir)}`);
         }
@@ -59,7 +59,7 @@ class CompileAddonsUtil extends BaseExportUtilAddons {
 
         const zip = new AdmZip();
 
-        this.addFolderToZip(zip, packDir, '', true);
+        this.addFolderToZip(zip, packDir, "", true);
 
         const packPath = path.join(outDir, `${name}_${type.toLowerCase()}.mcpack`);
 
@@ -74,8 +74,8 @@ class CompileAddonsUtil extends BaseExportUtilAddons {
         for (const item of fs.readdirSync(localPath, { withFileTypes: true })) {
             const itemName = item.name;
 
-            if (isRoot && itemName == 'src') continue;
-            if (itemName.startsWith('.') || itemName == 'node_modules') continue;
+            if (isRoot && itemName == "src") continue;
+            if (itemName.startsWith(".") || itemName == "node_modules") continue;
 
             const fullPath = path.join(localPath, itemName);
             const relPath = zipPath ? `${zipPath}/${itemName}` : itemName;
@@ -83,36 +83,33 @@ class CompileAddonsUtil extends BaseExportUtilAddons {
             if (item.isDirectory()) {
                 this.addFolderToZip(zip, fullPath, relPath, false);
             } else {
-                zip.addLocalFile(fullPath, zipPath || '');
+                zip.addLocalFile(fullPath, zipPath || "");
             }
         }
     }
 
     run() {
-        const outDir = process.env.MC_OUT_DIR || this.resolve('addons-compilados');
+        const outDir = process.env.MC_OUT_DIR || this.resolve("addons-compilados");
 
-        this.warnIfMissing('MC_OUT_DIR', 'outDir', outDir);
+        this.warnIfMissing("MC_OUT_DIR", "outDir", outDir);
 
         if (!fs.existsSync(outDir)) {
-            fs.mkdirSync(outDir, { recursive: true })
-        };
+            fs.mkdirSync(outDir, { recursive: true });
+        }
 
-        fs.readdirSync(outDir).forEach(file => fs.unlinkSync(path.join(outDir, file)));
+        fs.readdirSync(outDir).forEach((file) => fs.unlinkSync(path.join(outDir, file)));
 
-        const bpPacks = this.findPacks(this.resolve('behaviors'));
-        const rpPacks = this.findPacks(this.resolve('resources'));
+        const bpPacks = this.findPacks(this.resolve("behaviors"));
+        const rpPacks = this.findPacks(this.resolve("resources"));
 
-        bpPacks.forEach(packDir => {
-            this.compilePack(packDir)
+        bpPacks.forEach((packDir) => {
+            this.compilePack(packDir);
         });
 
-        const generatedPacks = [
-            ...bpPacks.map(packDir => this.zipPack(packDir, outDir, 'BP')),
-            ...rpPacks.map(packDir => this.zipPack(packDir, outDir, 'RP'))
-        ];
+        const generatedPacks = [...bpPacks.map((packDir) => this.zipPack(packDir, outDir, "BP")), ...rpPacks.map((packDir) => this.zipPack(packDir, outDir, "RP"))];
 
         if (generatedPacks.length == 0) {
-            console.log('⚠️ No se generó ningún pack.');
+            console.log("⚠️ No se generó ningún pack.");
         } else {
             console.log(`✅ ${generatedPacks.length} packs generados individualmente en formato .mcpack en: ${outDir}`);
         }
@@ -120,13 +117,19 @@ class CompileAddonsUtil extends BaseExportUtilAddons {
 }
 
 CompileAddonsUtil.prototype.externals = [
-    '@minecraft/server', '@minecraft/server-ui', '@minecraft/server-gametest',
-    '@minecraft/server-graphics', '@minecraft/server-net',
-    '@minecraft/debug-utilities', '@minecraft/gameplay-utilities'
-].map(external => `--external:${external}`).join(' ');
+    "@minecraft/server",
+    "@minecraft/server-ui",
+    "@minecraft/server-gametest",
+    "@minecraft/server-graphics",
+    "@minecraft/server-net",
+    "@minecraft/debug-utilities",
+    "@minecraft/gameplay-utilities",
+]
+    .map((external) => `--external:${external}`)
+    .join(" ");
 
-if (require.main == module) { 
-    new CompileAddonsUtil().run()
-};
+if (require.main == module) {
+    new CompileAddonsUtil().run();
+}
 
 module.exports = CompileAddonsUtil;
