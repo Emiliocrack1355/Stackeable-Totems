@@ -1,44 +1,51 @@
-import { world, system } from "@minecraft/server";
-import { addonState, addonVer } from "../system/utils";
+import { afterEventsSimplified, customEventsManager, worldToolsSimplified } from "simplified-mojang-api";
 
-export class worldInit {
-  constructor() {
-    this.onPlayerSpawn();
-  }
+/**
+ * CLase principal encargada de los eventos centrales que se ejecutan cuando se inicia el add-on.
+ * @typedef {worldInit}
+ * @author Emiliocrack1355
+ * @modified HaJuegos - v2 - Motivo: Simplificacion de codigo y mejora del mismo - 24-08-2026
+ */
+class WorldEventsManagerClass {
+    /**
+     * Variable global de solo lectura que indica la version del add-on en cuestion.
+     * @type {string}
+     * @author Emiliocrack1355
+     * @readonly
+     * @private
+     */
+    private readonly addonVer = 'v1.4-beta';
 
-  /**
-   * Mensaje de bienvenida cada que el jugador enttra al mundo
-   */
-  private onPlayerSpawn(): void {
-    world.afterEvents.playerSpawn.subscribe((ev) => {
-      const { player, initialSpawn } = ev;
-      if (initialSpawn) {
-        system.runTimeout(() => {
-          player.sendMessage({
-            translate: "emi.totems.system.welcome",
-            with: [addonVer, addonState],
-          });
-          this.setScore();
-        }, 600);
-      }
-    });
-  }
+    /**
+     * Eventos principales de la clase cuando es llamada o inicializada.
+     * @constructor
+     */
+    constructor () {
+        // Fast items solo con el totem por defecto.
+        customEventsManager.fastItemsSystem(() => ['totem']);
 
-  /**
-   * Crear el scoreboard de totems en caso de no existir
-   */
-  private setScore(): void {
-    const useScore = world.scoreboard.getObjective("use_totem");
-    if (!useScore) {
-      world.scoreboard.addObjective("use_totem", "§gTotems Usados");
-      world.sendMessage({ translate: "emi.totems.system.notScore" });
-      //  Scoreboard de configuraciones globales
-      world.scoreboard.addObjective("config");
-      system.runTimeout((): void => {
-        //  Default Values
-        world.scoreboard.getObjective("config")?.setScore("prob", 101); // 0% fail - (100 >= 101) = false
-        world.scoreboard.getObjective("config")?.setScore("cost", 1); // -1 totem
-      }, 20);
+        this.playerSpawnEvents();
     }
-  }
+
+    /**
+     * Metodo principal que se encarga del mensaje de bienvenida cada que el jugador entra al mundo.
+     * @returns {void}
+     * @version 2
+     * @private
+     * @author Emiliocrack1355
+     * @modified HaJuegos - v2 - Motivo: Simplificacion de codigo y mejora del mismo - 24-08-2026
+     */
+    private playerSpawnEvents(): void {
+        afterEventsSimplified.onPlayerSpawns((args) => {
+            const { player: ply, initialSpawn: firstSpawn } = args;
+
+            if (firstSpawn) {
+                worldToolsSimplified.setDelay(() => {
+                    ply.sendMessage({ rawtext: [{ translate: 'emi.totems.system.welcome', with: [this.addonVer] }] });
+                }, worldToolsSimplified.convertSecondsToTicks(1));
+            }
+        });
+    }
 }
+
+new WorldEventsManagerClass();

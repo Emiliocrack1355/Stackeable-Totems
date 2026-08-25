@@ -3,9 +3,9 @@
 
 
 ## Manifest Texts
-pack.name=§7§l[§r§aRP§r§7§l]§r Stackable Totems | Created by §pEmiliocrack1355§r
+pack.name=§7§l[§r§aRP§r§7§l]§r Stackable Totems | Created by §eEmiliocrack1355§r
 pack.description=§oRequired resources for the add-on§r
 
 
 ### Systems
-emi.totems.system.welcome=§aStackeable Totems - v%s%s \n§7By §eEmiliocrack1355
+emi.totems.system.welcome=§aStackeable Totems - %s \n§7By §eEmiliocrack1355

@@ -1,171 +1,71 @@
-import {
-  world,
-  system,
-  Player,
-  EntityHealCause,
-  EntityComponentTypes,
-  EquipmentSlot,
-  EntityEquippableComponent,
-  ItemStack,
-} from "@minecraft/server";
-import { MinecraftItemTypes } from "@minecraft/vanilla-data";
-import { vanilaTotemEffects } from "../system/utils";
-import { EffectDefinition } from "../system/types";
+import * as mc from '@minecraft/server';
 
-export class TotemsMetods {
-  constructor() {
-    this.onUseTotem();
-  }
+import { customEventsManager, worldToolsSimplified } from "simplified-mojang-api";
 
-  /**
-   * Controlador principal en donde se detecta el uso de los totems
-   */
-  private onUseTotem(): void {
-    world.beforeEvents.entityHeal.subscribe((ev): void => {
-      const { healSource, healedEntity: player } = ev;
-      if (!(player instanceof Player)) return;
-      if (healSource.cause !== EntityHealCause.TotemOfUndying) return;
-      const comp = player.getComponent(EntityComponentTypes.Equippable);
-      if (!comp) return;
-      const main = comp.getEquipment(EquipmentSlot.Mainhand);
-      const off = comp.getEquipment(EquipmentSlot.Offhand);
-      let item = undefined;
-      let slot = undefined;
-      if (main && !off) {
-        item = main;
-        slot = EquipmentSlot.Mainhand;
-      }
-      if (!main && off) {
-        item = off;
-        slot = EquipmentSlot.Offhand;
-      }
-      if (main && off) {
-        item = off;
-        slot = EquipmentSlot.Offhand;
-      }
-      if (!item || !slot) return;
-
-      system.run((): void => {
-        this.useTotem(player, comp, item, slot);
-      });
-    });
-  }
-
-  /**
-   * Logica de uso del totem
-   * @param player
-   * @param comp
-   * @param item
-   * @param slot
-   */
-  private useTotem(
-    player: Player,
-    comp: EntityEquippableComponent,
-    item: ItemStack,
-    slot: EquipmentSlot
-  ): void {
-    this.applyEffects("remove", player, vanilaTotemEffects);
-    const result = this.consumeTotem(player, comp, item, slot);
-    if (!result) {
-      player.kill();
-      world.sendMessage({
-        translate: "emi.totems.useTotem.notEnought",
-        with: [player.name],
-      });
-      return;
+/**
+ * Clase principal que se encarga de los sensores y la ejecucion de los totems.
+ * @version 2
+ * @typedef {TotemsManagerClass}
+ * @author Emiliocrack1355
+ * @modified HaJuegos - v2 - Motivo: Nuevos ajustes y simplificaciones generales - 24-08-2026
+ */
+class TotemsManagerClass {
+    /**
+     * Eventos iniciales de la clase cuando es llamada o inicializada.
+     * @constructor
+     */
+    constructor () {
+        this.totemSensor();
     }
-    const totem = world.scoreboard.getObjective("use_totem");
-    if (!totem) return;
-    totem.addScore(player.name, 1);
-    this.onTotemEffect(player, item);
-  }
 
-  /**
-   * Metodo auxiliar para sobreescribir desde la clase hija Totems
-   */
-  protected onTotemEffect(_player: Player, _item: ItemStack): void {}
+    /**
+     * Controlador principal en donde se detecta el uso de los totems.
+     * @returns {void}
+     * @version 2
+     * @private
+     * @author Emiliocrack1355
+     * @modified HaJuegos - v2 - Motivo: Simplificacion del metodo principal - 24-08-2026
+     */
+    private totemSensor(): void {
+        customEventsManager.onEntityUseTotem((entity) => {
+            if (!(entity instanceof mc.Player)) return;
 
-  /**
-   * Logica de consumo del stack de totems
-   * @param player El jugador en cuestion
-   * @param comp Componente Equippable
-   * @param item El item de la mano
-   * @param slot Slot en donde esta el item
-   * @returns
-   */
-  private consumeTotem(
-    player: Player,
-    comp: EntityEquippableComponent,
-    item: ItemStack,
-    slot: EquipmentSlot
-  ): boolean | undefined {
-    const config = world.scoreboard.getObjective("config");
-    if (!config) return false;
-    const prob = config.getScore("prob");
-    const cost = config.getScore("cost");
-    if (prob === undefined || cost === undefined) return false;
-    const amount = item.amount;
-    if (amount > cost) {
-      const clone = item.clone();
-      clone.amount = amount - cost;
-      comp.setEquipment(slot, clone);
-      return true;
-    } else if (amount === cost) {
-      comp.setEquipment(slot, undefined);
-      return true;
-    } else {
-      const lore = item.getLore()[0];
-      const inv = player.getComponent(
-        EntityComponentTypes.Inventory
-      )?.container;
-      if (!inv) return false;
-      let items = 0;
-      let slots = [];
-      for (let i = 0; i < inv.size; i++) {
-        const it = inv.getItem(i);
-        if (!it || it.typeId !== MinecraftItemTypes.TotemOfUndying) continue;
-        if (it.getLore()[0] !== lore) continue;
-        items += it.amount;
-        slots.push(i);
-      }
-      let remaining = cost - amount;
-      if (items < remaining) return false;
-      comp.setEquipment(slot, undefined);
-      for (const i of slots) {
-        if (remaining <= 0) break;
-        const stack = inv.getItem(i);
-        if (!stack) continue;
-        if (stack.amount > remaining) {
-          const clone = stack.clone();
-          clone.amount = stack.amount - remaining;
-          inv.setItem(i, clone);
-          remaining = 0;
-        } else {
-          remaining -= stack.amount;
-          inv.setItem(i, undefined);
-        }
-      }
-      return true;
+            this.useTotemLogic(entity);
+        });
     }
-  }
 
-  /**
-   * Metodo auxiliar para aplicar o remover efectos
-   * @param type Se declara si se añaden o se eliminan los effectos
-   * @param player El jugador en cuestion
-   * @param effects Lista de efectos
-   */
-  protected applyEffects(
-    type: "remove" | "add",
-    player: Player,
-    effects: EffectDefinition[]
-  ): void {
-    for (const { eff, dur, amp } of effects) {
-      if (type === "remove") {
-        player.removeEffect(eff);
-      } else if (type === "add") {
-        player.addEffect(eff, (dur ?? 10) * 20, { amplifier: amp ?? 0 });
-      }
+    /**
+     * Metodo auxiliar que se encarga de obtener en primera instancia el orden del item del totem usado.
+     * @param {mc.Player} ply Jugador en cuestion a considerar.
+     * @returns {void}
+     * @version 2
+     * @private
+     * @author Emiliocrack1355
+     * @modified HaJuegos - v2 - Motivo: Simplificacion del metodo y mejora del codigo original - 24-08-2026
+     */
+    private useTotemLogic(ply: mc.Player): void {
+        const armorInv = ply.getComponent(mc.EntityComponentTypes.Equippable);
+
+        if (!armorInv) return;
+
+        const offItem = armorInv.getEquipment(mc.EquipmentSlot.Offhand);
+        const mainItem = armorInv.getEquipment(mc.EquipmentSlot.Mainhand);
+
+        const dataItems = offItem ? { item: offItem, slot: mc.EquipmentSlot.Offhand } : mainItem ? { item: mainItem, slot: mc.EquipmentSlot.Mainhand } : undefined;
+
+        if (!dataItems) return;
+
+        worldToolsSimplified.setRun(() => {
+            if (dataItems.item.amount > 1) {
+                const newItem = dataItems.item.clone();
+
+                newItem.amount--;
+                armorInv.setEquipment(dataItems.slot, newItem);
+            } else {
+                armorInv.setEquipment(dataItems.slot, undefined);
+            }
+        });
     }
-  }
 }
+
+new TotemsManagerClass();
