@@ -5,7 +5,6 @@ class BaseExportUtilAddons {
     constructor() {
         this.rootDir = path.resolve(__dirname, "..");
         this.ignoredList = this.loadIgnored();
-        this.externals = "";
     }
 
     resolve(...segments) {
@@ -79,11 +78,20 @@ class BaseExportUtilAddons {
             try {
                 fs.cpSync(srcPath, dstPath, { force: true });
             } catch (error) {
-                if (warnOnLocked && (error.code == "EPERM" || error.code == "EBUSY")) {
+                const isLocked = ["EPERM", "EBUSY", "EPIPE", "EACCES"].includes(error.code);
+
+                if (warnOnLocked && isLocked) {
                     console.warn(`\x1b[33m[Bloqueado]\x1b[0m Minecraft está usando: ${itemName} (Se omitió)`);
-                } else {
-                    throw error;
+                    continue;
                 }
+
+                if (isLocked) {
+                    console.error(`❌ Archivo en uso (${error.code}): ${srcPath}`);
+                    console.error(`   No se pudo copiar a: ${dstPath}`);
+                    console.error(`   Cierra el programa que lo está usando (ej. Minecraft) e intenta de nuevo.`);
+                }
+
+                throw error;
             }
         }
     }

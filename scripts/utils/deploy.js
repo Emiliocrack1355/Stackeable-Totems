@@ -12,6 +12,11 @@ class BuildAddonsUtil extends BaseExportUtilAddons {
 
         this.projects = [
             {
+                pathBP: "tl15d",
+                pathRP: "tl15d_rp",
+                githubPath: process.env.MC_PROJECT_TL15D_PATH || path.join(githubBase, "The-Last-15-Days"),
+            },
+            {
                 pathBP: "stack_totems",
                 pathRP: "stack_totems_rp",
                 githubPath: process.env.MC_PROJECT_STACKTOTEMS_PATH || path.join(githubBase, "Stackeable-Totems"),
