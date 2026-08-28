@@ -1,0 +1,24 @@
+{
+    "semi": true,
+    "tabWidth": 4,
+    "printWidth": 80,
+    "trailingComma": "es5",
+    "bracketSpacing": true,
+    "arrowParens": "always",
+    "overrides": [
+        {
+            "files": ["*.json", ".prettierrc"],
+            "options": {
+                "tabWidth": 4,
+                "trailingComma": "none"
+            }
+        },
+        {
+            "files": ["*.js", "*.jsx", "*.ts", "*.tsx"],
+            "options": {
+                "tabWidth": 4,
+                "printWidth": 200
+            }
+        }
+    ]
+}
