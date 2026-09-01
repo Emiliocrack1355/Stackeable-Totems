@@ -10,7 +10,3 @@ import "./worldEvents/worldInit";
 - Data 5 => Tp Totem
 - Data 6 => Mini Totem
 */
-
-//  cd c:users/Brian/Desktop/Proyectos/dev
-//  npm run watch
-//
