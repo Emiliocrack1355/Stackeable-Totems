@@ -1,4 +1,5 @@
 import "./totemLogic/CustomTotems";
+import "./worldEvents/worldInit"
 
 /*
 - Data 0 => Vanila Totem
