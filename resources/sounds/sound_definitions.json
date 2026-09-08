@@ -1,0 +1,29 @@
+{
+  "format_version": "1.26.0",
+  "sound_definitions": {
+    "totems.tnt": {
+      "category": "ui",
+      "sounds": [
+        "sounds/totems/tnt"
+      ]
+    },
+    "totems.fly": {
+      "category": "ui",
+      "sounds": [
+        "sounds/totems/fly"
+      ]
+    },
+    "totems.ender": {
+      "category": "ui",
+      "sounds": [
+        "sounds/totems/ender"
+      ]
+    },
+    "totems.void": {
+      "category": "ui",
+      "sounds": [
+        "sounds/totems/void"
+      ]
+    }
+  }
+}
