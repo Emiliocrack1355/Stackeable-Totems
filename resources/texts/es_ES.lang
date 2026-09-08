@@ -1,11 +1,19 @@
-## Creado o modificado por Ha Juegos y Emiliocrack1355. Archivo de uso libre, cualquier modificacion o edicion del mismo, debe ser acreditado. Gracias, cualquier informacion en: https://github.com/Emiliocrack1355/Stackeable-Totems
-## Created or modified by Ha Juegos y Emiliocrack1355. Free to use file, any modification or editing of it must be credited. Thank you, any information at: https://github.com/Emiliocrack1355/Stackeable-Totems
-
-
-## Manifest Texts
-pack.name=§7§l[§r§aRP§r§7§l]§r Tótems Stackeables | Creado por §eEmiliocrack1355§r
-pack.description=§oRecursos necesarios para el add-on§r
-
-
 ### Systems
-emi.totems.system.welcome=§aTotems Apilables - %s \n§7Por §eEmiliocrack1355
+emi.totems.system.welcome=§aTotems Apilables - v%s%s \n§7Por §eEmiliocrack1355
+emi.totems.system.notScore=§eAdvertencia - No existe el score de Totems\n§7Creando uno...
+emi.totems.system.setProb=§eSe estableció la probabilidad de fallo del totem en %s
+emi.totems.system.setCost=§eSe estableció el costo del totem en %s
+
+emi.totems.cmd=§7Permite modificar parámetros del uso de los totems
+###
+
+
+### Totems
+emi.totems.useTotem.notEnought=§c>> %s no tenía totems suficientes
+emi.totems.useTotem.fail=§7>> %s usó un %s§7 con probabilidad %s > %s\n§cHa muerto...
+emi.totems.useTotem.prob=§7>> %s usó un %s§7 con probabilidad %s > %s
+emi.totems.useTotem=§7>> %s usó un %s
+emi.totems.useTotem.void=§c>> El Void Totem solo funciona en el Vacío
+emi.totems.useTotem.void-normal=§c>> %s no funciona en el Vacío
+
+emi.totems.saveSpawn=§a>> Punto de reaparición guardado en %s
