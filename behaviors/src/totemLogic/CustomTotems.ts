@@ -3,6 +3,7 @@ import {
   EntityComponentTypes,
   Player,
   system,
+  Vector3,
   world,
 } from "@minecraft/server";
 import { TotemMetods } from "./TotemMetods";
@@ -180,12 +181,87 @@ class CustomTotems extends TotemMetods {
    * @author Emiliocrack1355 - 07/09/26
    */
   private randomTp(player: Player): void {
+    const origin = { ...player.location }; // <-- se guarda la posicion original antes del tp
     const { x, y, z } = player.location;
     const range = 16;
     const nx = x + (Math.random() * range * 2 - range);
     const nz = z + (Math.random() * range * 2 - range);
-    player.teleport({ x: nx, y, z: nz }, { dimension: player.dimension });
-    //  Agregar particulas desde el origen hasta la nueva posicion
+    const dim = player.dimension;
+    player.teleport({ x: nx, y, z: nz }, { dimension: dim });
+    const destination = { x: nx, y, z: nz };
+    system.runJob(this.spawnTrail(dim, origin, destination));
+  }
+
+  /**
+   * Metodo auxiliar generador que crea un rastro de particulas
+   * entre dos puntos, repartido en varios ticks para evitar lag,
+   * con una dispersion aleatoria alrededor de cada punto de la linea
+   * @param dim La dimension en donde se genera el rastro
+   * @param start Posicion inicial del rastro
+   * @param end Posicion final del rastro
+   * @param particlesPerStep Cantidad de particulas generadas por cada punto del rastro
+   * @param spreadRadius Radio maximo de dispersion aleatoria por particula
+   * @private
+   * @author Emiliocrack1355 - 07/09/26
+   */
+  private *spawnTrail(
+    dim: Dimension,
+    start: Vector3,
+    end: Vector3,
+    particlesPerStep: number = 6,
+    spreadRadius: number = 0.75
+  ): Generator<void, void, unknown> {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const dz = end.z - start.z;
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const steps = Math.max(1, Math.ceil(distance * 2));
+
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const point = {
+        x: start.x + dx * t,
+        y: start.y + dy * t + 1.75,
+        z: start.z + dz * t,
+      };
+      for (let p = 0; p < particlesPerStep; p++) {
+        const offset = this.randomSphereOffset(spreadRadius);
+        const finalPoint = {
+          x: point.x + offset.x,
+          y: point.y + offset.y,
+          z: point.z + offset.z,
+        };
+        try {
+          dim.spawnParticle("minecraft:basic_portal_particle", finalPoint);
+        } catch {}
+      }
+      yield;
+    }
+  }
+
+  /**
+   * Metodo auxiliar que genera un offset aleatorio dentro de una esfera,
+   * con distribucion uniforme en volumen
+   * 
+   * @param radius Radio maximo de la esfera
+   * @returns Retorna un vector {x, y, z} dentro del radio dado
+   * @private
+   * @author Emiliocrack1355 - 07/09/26
+   * @nota Me apoye de IA porque la matematica esta compleja xD
+   */
+  private randomSphereOffset(radius: number): {
+    x: number;
+    y: number;
+    z: number;
+  } {
+    const r = radius * Math.cbrt(Math.random());
+    const theta = Math.random() * 2 * Math.PI; // angulo azimutal
+    const phi = Math.acos(2 * Math.random() - 1); // angulo polar
+    return {
+      x: r * Math.sin(phi) * Math.cos(theta),
+      y: r * Math.sin(phi) * Math.sin(theta),
+      z: r * Math.cos(phi),
+    };
   }
 
   /**
@@ -193,6 +269,8 @@ class CustomTotems extends TotemMetods {
    * en caso de no existir, se retorna el world spawn
    * @param player El jugador que uso el totem
    * @returns Retorna el SpawnPoint del jugador o el Spawn por defecto del mundo
+   * @private
+   * @author Emiliocrack1355 - 09/09/26
    */
   private getSpawnPoint(player: Player): {
     x: number;

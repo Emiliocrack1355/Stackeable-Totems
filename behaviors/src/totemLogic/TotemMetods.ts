@@ -394,13 +394,6 @@ export class TotemMetods {
         { eff: "regeneration", dur: 15, amp: 2 },
         { eff: "absorption", dur: 15, amp: 2 },
       ],
-    },
-    {
-      id: "§0mini_totem",
-      data: 6,
-      name: "§r§bMini Totem",
-      lore: ["§r§9On Use: Tamaño mini x 30 seg"],
-      effects: [{ eff: "regeneration", dur: 10, amp: 4 }],
-    },
+    }
   ];
 }
