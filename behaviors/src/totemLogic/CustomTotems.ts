@@ -64,7 +64,7 @@ class CustomTotems extends TotemMetods {
         break;
       case "§0ender_totem":
         const { x, y, z, dim } = this.getSpawnPoint(player);
-        world.sendMessage(`x:${x}, y:${y}, z:${z}, dim:${dim.id}`);
+        // world.sendMessage(`x:${x}, y:${y}, z:${z}, dim:${dim.id}`);
         player.teleport({ x: x, y: y, z: z }, { dimension: dim });
         break;
       case "§0tp_totem":
@@ -114,10 +114,10 @@ class CustomTotems extends TotemMetods {
             ? `testfor @s[hasitem={item=${this.totem},location=slot.hotbar,slot=${i},data=${variant.data}}]`
             : `testfor @s[hasitem={item=${this.totem},location=slot.inventory,slot=${i - 9},data=${variant.data}}]`;
         if (!player.runCommand(query).successCount) continue;
-        // const newItem = item.clone();
-        item.setLore([variant.id, ...variant.lore]);
-        item.nameTag = variant.name;
-        inv.setItem(i, item);
+        const newItem = item.clone();
+        newItem.setLore([variant.id, ...variant.lore]);
+        newItem.nameTag = variant.name;
+        inv.setItem(i, newItem);
         break;
       }
     }
@@ -204,12 +204,12 @@ class CustomTotems extends TotemMetods {
       .getTags()
       .find((t): boolean => t.startsWith("spawn:"));
     if (!spawnPoint) {
-      world.sendMessage("def world spawn");
+      // world.sendMessage("def world spawn");
       const { x, y, z } = world.getDefaultSpawnLocation();
       const dim = world.getDimension("overworld");
       return { x: x, y: y, z: z, dim: dim };
     } else {
-      world.sendMessage("spawnpoint");
+      // world.sendMessage("spawnpoint");
       const spawn = spawnPoint.split(":")[1];
       const [coords, dimension] = spawn.split(";");
       const [x, y, z] = coords.split(",");

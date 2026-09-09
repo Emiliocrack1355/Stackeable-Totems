@@ -105,7 +105,7 @@ export class TotemMetods {
     const prob = scoreboard.getScore("prob") ?? 101;
     const amount = item.amount;
     const lore = item.getLore()[0];
-    const totemData = this.getTotemData(player, slot, cost, amount, lore);
+    const totemData = this.getTotemData(player, slot, cost, amount, lore, item);
     if (!totemData.hasStack) {
       this.failedTotem(player, lore, ev, totemData);
       return;
@@ -137,10 +137,16 @@ export class TotemMetods {
     slot: EquipmentSlot,
     cost: number,
     amount: number,
-    lore: string
+    lore: string,
+    item: ItemStack
   ): TotemData {
     if (amount >= cost)
-      return { hasStack: true, hand: slot, handAmount: amount - cost };
+      return {
+        hasStack: true,
+        hand: slot,
+        handItem: item,
+        handAmount: amount - cost,
+      };
     const inv = player.getComponent(EntityComponentTypes.Inventory)?.container;
     if (!inv) return { hasStack: false };
     let needs = cost - amount;
@@ -160,7 +166,13 @@ export class TotemMetods {
       }
     }
     return needs <= 0
-      ? { hasStack: true, hand: slot, handAmount: amount, inv: itemsInv }
+      ? {
+          hasStack: true,
+          hand: slot,
+          handItem: item,
+          handAmount: amount,
+          inv: itemsInv,
+        }
       : { hasStack: false };
   }
 
@@ -255,10 +267,9 @@ export class TotemMetods {
     if (!equip) return;
     if (totemData.hasStack) {
       if (totemData.handAmount > 0) {
-        const handItem = equip.getEquipment(totemData.hand);
-        if (!handItem) return;
-        handItem.amount = totemData.handAmount;
-        equip.setEquipment(totemData.hand, handItem);
+        const newHandItem = totemData.handItem.clone();
+        newHandItem.amount = totemData.handAmount;
+        equip.setEquipment(totemData.hand, newHandItem); //
       } else {
         equip.setEquipment(totemData.hand, undefined);
       }
@@ -272,8 +283,9 @@ export class TotemMetods {
           if (!it) continue;
           const remaining = it.amount - amount;
           if (remaining > 0) {
-            it.amount = remaining;
-            inv.setItem(slot, it);
+            const newItem = it.clone();
+            newItem.amount = remaining;
+            inv.setItem(slot, newItem);
           } else {
             inv.setItem(slot, undefined);
           }
