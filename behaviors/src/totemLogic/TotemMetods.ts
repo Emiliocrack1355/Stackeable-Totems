@@ -1,7 +1,9 @@
 import {
   EntityComponentTypes,
+  EntityDamageCause,
   EntityHealBeforeEvent,
   EntityHealCause,
+  EntityHurtBeforeEvent,
   EquipmentSlot,
   ItemStack,
   Player,
@@ -28,6 +30,15 @@ export class TotemMetods {
   protected readonly totem = MinecraftItemTypes.TotemOfUndying;
 
   /**
+   * Variable global que controla el estado de uso de
+   * los Void Totems, para evitar mensajes y consumos duplicados
+   * @readonly
+   * @private
+   * @author Emiliocrack1355 - 10/09/26
+   */
+  private readonly processingVoidTotem = new Set();
+
+  /**
    * Eventos que se inicializan al cargar la clase
    * @constructor
    * @author Emiliocrack1355 - 07/09/26
@@ -39,16 +50,52 @@ export class TotemMetods {
   /**
    * Metodo que detecta cuando un totem es usado
    * @private
-   * @author Emiliocrack1355 - 07/09/26
+   * @author Emiliocrack1355 - 10/09/26
    */
-  private TotemDetect() {
+  private TotemDetect(): void {
     world.beforeEvents.entityHeal.subscribe((ev) => {
       const { healSource, healedEntity } = ev;
       if (!(healedEntity instanceof Player)) return;
       if (healSource.cause !== EntityHealCause.TotemOfUndying) return;
       const data = this.getHand(healedEntity);
       if (!data) return;
-      this.onUseTotem(healedEntity, data.hand, data.item, ev);
+      //  Logica de fallo en caso de ser Void Totem
+      const variant = this.getVariant(data.item.getLore()[0]);
+      if (!variant) return;
+      if (variant.data === 4) {
+        ev.cancel = true;
+        world.sendMessage({
+          translate: "emi.totems.useTotem.void",
+          with: [variant.name],
+        });
+        return;
+      }
+      this.onUseTotem(healedEntity, data.hand, data.item, ev, false);
+    });
+
+    ha.beforeEventsSimplified.onEntityHurt((ev): void => {
+      const { damage, damageSource, hurtEntity } = ev;
+      if (!(hurtEntity instanceof Player)) return;
+      if (damageSource.cause !== EntityDamageCause.void) return;
+      const data = this.getHand(hurtEntity);
+      if (!data) return;
+      const variant = this.getVariant(data.item.getLore()[0]);
+      if (!variant) return;
+      const health = hurtEntity.getComponent(EntityComponentTypes.Health);
+      if (!health) return;
+      if (damage < health.currentValue) return;
+      //  Cualquier otro totem que no sea el Void Totem, fallara
+      if (variant.data !== 4) {
+        world.sendMessage({
+          translate: "emi.totems.useTotem.void-normal",
+          with: [variant.name],
+        });
+        return;
+      }
+      // En caso de existir, se saltara el evento de daño
+      if (this.processingVoidTotem.has(hurtEntity.id)) return;
+      this.processingVoidTotem.add(hurtEntity.id);
+      this.onUseTotem(hurtEntity, data.hand, data.item, ev, true);
     });
   }
 
@@ -90,13 +137,14 @@ export class TotemMetods {
    * @param item El item del totem
    * @param ev Evento para cancelar el uso del totem
    * @private
-   * @author Emiliocrack1355 - 07/09/26
+   * @author Emiliocrack1355 - 10/09/26
    */
   private onUseTotem(
     player: Player,
     slot: EquipmentSlot,
     item: ItemStack,
-    ev: EntityHealBeforeEvent
+    ev: EntityHealBeforeEvent | EntityHurtBeforeEvent,
+    isVoid: boolean
   ): void {
     const scoreboard =
       ha.worldToolsSimplified.getOrCreateScorebordObj("config");
@@ -107,7 +155,7 @@ export class TotemMetods {
     const lore = item.getLore()[0];
     const totemData = this.getTotemData(player, slot, cost, amount, lore, item);
     if (!totemData.hasStack) {
-      this.failedTotem(player, lore, ev, totemData);
+      this.failedTotem(player, lore, totemData, ev, isVoid);
       return;
     }
     let probData: ProbData | undefined;
@@ -116,8 +164,8 @@ export class TotemMetods {
       probData = { hasFailed: random >= prob, rand: random, prob: prob };
     }
     if (probData?.hasFailed)
-      this.failedTotem(player, lore, ev, totemData, probData);
-    else this.successTotem(player, lore, totemData, probData);
+      this.failedTotem(player, lore, totemData, ev, isVoid, probData);
+    else this.successTotem(player, lore, totemData, ev, isVoid, probData);
   }
 
   /**
@@ -183,16 +231,20 @@ export class TotemMetods {
    * @param totemData La informacion del inventario con respecto al totem custom
    * @param probData La informacion de probabilidad de uso del totem
    * @private
-   * @author Emiliocrack1355 - 07/09/26
+   * @author Emiliocrack1355 - 10/09/26
    */
   private successTotem(
     player: Player,
     lore: string,
     totemData: TotemData,
+    ev: EntityHealBeforeEvent | EntityHurtBeforeEvent,
+    isVoid: boolean,
     probData?: ProbData
   ): void {
     const variant = this.getVariant(lore);
     if (!variant) return;
+    if (isVoid) ev.cancel = true;
+
     if (probData) {
       world.sendMessage({
         translate: "emi.totems.useTotem.prob",
@@ -209,7 +261,8 @@ export class TotemMetods {
         with: [player.name, variant.name],
       });
     }
-    system.run(() => {
+    system.run((): void => {
+      this.processingVoidTotem.delete(player.id);
       this.onTotemEffect(player, variant);
       this.consumeTotem(player, totemData);
     });
@@ -223,18 +276,22 @@ export class TotemMetods {
    * @param totemData La informacion del inventario con respecto al totem custom
    * @param probData La informacion de probabilidad de uso del totem
    * @private
-   * @author Emiliocrack1355 - 07/09/26
+   * @author Emiliocrack1355 - 10/09/26
    */
   private failedTotem(
     player: Player,
     lore: string,
-    ev: EntityHealBeforeEvent,
     totemData: TotemData,
+    ev: EntityHealBeforeEvent | EntityHurtBeforeEvent,
+    isVoid: boolean,
     probData?: ProbData
   ): void {
-    ev.cancel = true;
+    system.runTimeout((): void => {
+      this.processingVoidTotem.delete(player.id);
+    }, 20);
     const variant = this.getVariant(lore);
     if (!variant) return;
+    if (!isVoid) ev.cancel = true;
     if (!totemData.hasStack) {
       world.sendMessage({
         translate: "emi.totems.useTotem.notEnought",
@@ -252,6 +309,7 @@ export class TotemMetods {
           String(probData.prob),
         ],
       });
+      return;
     }
   }
 
@@ -394,6 +452,6 @@ export class TotemMetods {
         { eff: "regeneration", dur: 15, amp: 2 },
         { eff: "absorption", dur: 15, amp: 2 },
       ],
-    }
+    },
   ];
 }

@@ -8,6 +8,7 @@ import {
 } from "@minecraft/server";
 import { TotemMetods } from "./TotemMetods";
 import { EffectDefinition, TotemVariant } from "../system/types";
+import { MinecraftBlockTypes } from "@minecraft/vanilla-data";
 
 /**
  * Clase hija que controla toda la logica de los efectos y habilidades
@@ -52,24 +53,28 @@ class CustomTotems extends TotemMetods {
    * @param player El jugador en cuestion que uso el totem
    * @param variant Informacion al respecto del totem custom
    * @protected
-   * @author Emiliocrack1355 - 07/09/26
+   * @author Emiliocrack1355 - 10/09/26
    */
   protected onTotemEffect(player: Player, variant: TotemVariant) {
     this.applyEffects("remove", player, this.vanilaTotemEffects);
     this.applyEffects("add", player, variant.effects);
     if (variant.sound)
       player.dimension.playSound(variant.sound, player.location);
+    const { x, y, z, dim } = this.getSpawnPoint(player);
     switch (variant.id) {
       case "§0tnt_totem":
         this.spawnTNT(player);
         break;
       case "§0ender_totem":
-        const { x, y, z, dim } = this.getSpawnPoint(player);
         // world.sendMessage(`x:${x}, y:${y}, z:${z}, dim:${dim.id}`);
         player.teleport({ x: x, y: y, z: z }, { dimension: dim });
         break;
       case "§0tp_totem":
         this.randomTp(player);
+        break;
+      case "§0void_totem":
+        // world.sendMessage(`x:${x}, y:${y}, z:${z}, dim:${dim.id}`);
+        player.teleport({ x: x, y: y, z: z }, { dimension: dim });
         break;
     }
   }
@@ -178,17 +183,25 @@ class CustomTotems extends TotemMetods {
    * Metodo auxiliar para realizar Tp aleatorios
    * @param player El jugador que uso el totem
    * @private
-   * @author Emiliocrack1355 - 07/09/26
+   * @author Emiliocrack1355 - 10/09/26
+   * @changes Se ha agregado la variable Y para hacer Tp a la maxima
+   * altura en relacion a la altura del jugador
    */
   private randomTp(player: Player): void {
-    const origin = { ...player.location }; // <-- se guarda la posicion original antes del tp
+    const origin = { ...player.location };
     const { x, y, z } = player.location;
     const range = 16;
+    const dim = player.dimension;
     const nx = x + (Math.random() * range * 2 - range);
     const nz = z + (Math.random() * range * 2 - range);
-    const dim = player.dimension;
-    player.teleport({ x: nx, y, z: nz }, { dimension: dim });
-    const destination = { x: nx, y, z: nz };
+    let ny = Math.floor(y);
+    while (ny < dim.heightRange.max - 1) {
+      const block = dim.getBlock({ x: nx, y: ny + 1, z: nz });
+      if (block?.typeId === MinecraftBlockTypes.Air) break;
+      ny++;
+    }
+    const destination = { x: nx, y: ny + 1, z: nz };
+    player.teleport(destination, { dimension: dim });
     system.runJob(this.spawnTrail(dim, origin, destination));
   }
 
@@ -242,7 +255,7 @@ class CustomTotems extends TotemMetods {
   /**
    * Metodo auxiliar que genera un offset aleatorio dentro de una esfera,
    * con distribucion uniforme en volumen
-   * 
+   *
    * @param radius Radio maximo de la esfera
    * @returns Retorna un vector {x, y, z} dentro del radio dado
    * @private
