@@ -1,8 +1,10 @@
 ### Systems
 emi.totems.system.welcome=§aStackable Totems - v%s%s \n§7By §eEmiliocrack1355
-emi.totems.system.notScore=§eWarning - The Totems score does not exist\n§7Creating one...
-emi.totems.system.setProb=§eSet the totem fail probability to %s
-emi.totems.system.setCost=§eSet the totem cost to %s
+emi.totems.system.notScore=§7[World] >> Warning - The Totems score does not exist\n§7Creating one...
+emi.totems.system.setProb=§7[World] >> §eSet the totem fail probability to %s
+emi.totems.system.setCost=§7[World] >> §eSet the totem cost to %s
+emi.totems.system.notValidProb=§7[World] >> §cThe value %s is not a valid range for probability §7< 1 .. 101 >
+emi.totems.system.notValidCost=§7[World] >> §cThe value %s is not a valid range for cost §7< 1 .. >
 
 emi.totems.cmd=§7Allows you to modify totem usage parameters
 ###
@@ -10,10 +12,10 @@ emi.totems.cmd=§7Allows you to modify totem usage parameters
 
 ### Totems
 emi.totems.useTotem.notEnought=§c>> %s did not have enough totems
-emi.totems.useTotem.fail=§7>> %s used a %s§7 with probability %s > %s\n§cThey died...
-emi.totems.useTotem.prob=§7>> %s used a %s§7 with probability %s > %s
+emi.totems.useTotem.fail=§7>> %s used a %s§7 with probability %s >= %s\n§cThey died...
+emi.totems.useTotem.prob=§7>> %s used a %s§7 with probability %s >= %s
 emi.totems.useTotem=§7>> %s used a %s
 emi.totems.useTotem.void=§c>> The Void Totem only works in the Void
-emi.totems.useTotem.void-normal=§c>> %s does not work in the Void
+emi.totems.useTotem.void-normal=§c>> %s §cdoes not work in the Void
 
 emi.totems.saveSpawn=§a>> Spawnpoint saved at %s
