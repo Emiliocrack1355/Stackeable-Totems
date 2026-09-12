@@ -48,7 +48,9 @@ class WorldEventsManager {
   /**
    * Metodo principal que se encarga del mensaje de bienvenida al entrar al mundo
    * @private
-   * @author Emiliocrack1355 & HaJuegos - 07/09/26
+   * @author Emiliocrack1355 & HaJuegos - 10/09/26
+   * @changes Se agrego una condicion dentro del comando /totem para validar
+   * que el valor este dentro de un rango valido
    */
   private onPlayerSpawnEvents(): void {
     afterEventsSimplified.onPlayerSpawns((args): void => {
@@ -59,17 +61,26 @@ class WorldEventsManager {
             translate: "emi.totems.system.welcome",
             with: [this.addonVer, this.addonState],
           });
+          worldToolsSimplified.getOrCreateScorebordObj("config");
+          system.run((): void => {
+            const score =
+              worldToolsSimplified.getOrCreateScorebordObj("config");
+            score?.setScore("prob", 101);
+            score?.setScore("cost", 1);
+          });
         }, worldToolsSimplified.convertSecondsToTicks(30));
       }
     });
-    world.beforeEvents.playerInteractWithBlock.subscribe((ev) => {
+    world.beforeEvents.playerInteractWithBlock.subscribe((ev): void => {
       const { block, player } = ev;
       if (!player || !block) return;
       if (block.typeId !== "minecraft:bed") return;
       if (!player.isSneaking) return;
       ev.cancel = true;
-      system.run(() => {
-        const tag = player.getTags().find((t) => t.startsWith("spawn:"));
+      system.run((): void => {
+        const tag = player
+          .getTags()
+          .find((t): boolean => t.startsWith("spawn:"));
         if (tag) player.removeTag(tag);
         const { x, y, z } = block.location;
         const dim = block.dimension.id.split(":")[1];
@@ -92,15 +103,26 @@ class WorldEventsManager {
           { name: "value", type: CustomCommandParamType.Integer },
         ],
       },
-      (origin, option, value) => {
+      (origin, option, value): undefined => {
         const player = origin.initiator ?? origin.sourceEntity;
         if (!(player instanceof Player)) return;
         const config = world.scoreboard.getObjective("config");
-        if (!config) {
-          world.sendMessage("pan");
+        if (!config) return;
+        if (option === "prob" && (value < 1 || value > 101)) {
+          world.sendMessage({
+            translate: "emi.totems.system.notValidProb",
+            with: [String(value)],
+          });
           return;
         }
-        system.run(() => {
+        if (option === "cost" && value < 1) {
+          world.sendMessage({
+            translate: "emi.totems.system.notValidCost",
+            with: [String(value)],
+          });
+          return;
+        }
+        system.run((): void => {
           switch (option) {
             case "prob":
               config.setScore("prob", value);

@@ -1,4 +1,4 @@
-import { EquipmentSlot } from "@minecraft/server";
+import { EquipmentSlot, ItemStack } from "@minecraft/server";
 
 /**
  * Tipo de dato que contiene la informacion
@@ -9,6 +9,7 @@ export type TotemData =
   | {
       hasStack: true;
       hand: EquipmentSlot;
+      handItem: ItemStack;
       handAmount: number;
       inv?: { slot: number; amount: number }[];
     };
