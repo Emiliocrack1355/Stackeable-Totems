@@ -1,0 +1,20 @@
+### Systems
+emi.totems.system.welcome=§aStackable Totems - v%s%s \n§7By §eEmiliocrack1355
+
+emi.totems.system.saveSpawn=§7[World] >> §aSpawnpoint saved at %s
+
+
+### Totems
+emi.totems.useTotem.notEnought=§7[World] >> §c%s no tenia suficientes totems
+emi.totems.useTotem.fail=§7[World] >> %s ha usado un totem con probabilidad %s >= %s\n§cHa muerto
+emi.totems.useTotem.prob=§7[World] >> %s ha usado un totem con probabilidad %s >= %s
+emi.totems.useTotem.=§7[World] >> %s ha usado un %s
+
+
+### COMMANDS
+emi.totems.cmd.notAdmin=§cNo posees permiso para ejecutar este comando => Admin
+emi.totems.cmd.totem=§7Permite modificar los parametros de uso de los totems
+emi.totems.cmd.setProb=§7[World] >> Se establecio la probabilidad de uso del totem en %s
+emi.totems.cmd.setCost=§7[World] >> Se establecio el coste por uso del totem en %s
+emi.totems.cmd.notValidProb=§7[System] >> §cEl valor %s no es un rango valido §7< 1..100 >
+emi.totems.cmd.notValidCost=§7[System] >> §cEl valor %s no es un rango valido  §7< 1.. >
