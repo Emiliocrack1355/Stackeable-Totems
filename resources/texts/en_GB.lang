@@ -1,8 +1,6 @@
 ### Systems
 emi.totems.system.welcome=§aStackable Totems - v%s%s \n§7By §eEmiliocrack1355
 
-emi.totems.system.saveSpawn=§7[World] >> §aSpawnpoint saved at %s
-
 
 ### Totems
 emi.totems.useTotem.notEnought=§c>> %s didn't have enough totems
