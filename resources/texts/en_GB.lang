@@ -5,7 +5,7 @@ emi.totems.system.saveSpawn=§7[World] >> §aSpawnpoint saved at %s
 
 
 ### Totems
-emi.totems.useTotem.notEnought=§7[World] >> §c%s didn't have enough totems
+emi.totems.useTotem.notEnought=§c>> %s didn't have enough totems
 emi.totems.useTotem.fail=§7>> %s used a totem with probability %s >= %s\n§cThey died
 emi.totems.useTotem.prob=§7>> %s used a totem with probability %s >= %s
 emi.totems.useTotem=§7>> %s used a totem
