@@ -6373,7 +6373,7 @@ var init_logic = __esm({
           return;
         }
         let probData;
-        if (config.prob > 0) {
+        if (config.prob < 100) {
           const random = Math.floor(Math.random() * 100) + 1;
           probData = {
             hasFailed: random >= config.prob,
@@ -6723,7 +6723,7 @@ var require_init = __commonJS({
             system5.run(() => {
               switch (option) {
                 case "prob":
-                  if (value < 1 || value > 100) {
+                  if (value < 0 || value > 100) {
                     world6.sendMessage({
                       translate: "emi.totems.cmd.notValidProb",
                       with: [String(value)]

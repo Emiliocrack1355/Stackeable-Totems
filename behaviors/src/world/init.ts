@@ -121,7 +121,7 @@ class WorldInit {
         system.run((): void => {
           switch (option) {
             case "prob":
-              if (value < 1 || value > 100) {
+              if (value < 0 || value > 100) {
                 world.sendMessage({
                   translate: "emi.totems.cmd.notValidProb",
                   with: [String(value)],

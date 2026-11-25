@@ -71,7 +71,7 @@ class TotemLogic {
       return;
     }
     let probData: ProbData | undefined;
-    if (config.prob > 0) {
+    if (config.prob < 100) {
       const random = Math.floor(Math.random() * 100) + 1;
       probData = {
         hasFailed: random >= config.prob,
