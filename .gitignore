@@ -1,1 +1,5 @@
 manifest.json
+*/*/scripts/
+*/*/*/scripts/
+scripts
+tsconfig.json
