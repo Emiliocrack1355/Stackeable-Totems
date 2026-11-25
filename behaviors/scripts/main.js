@@ -36,6 +36,2835 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/core/errorHandler.js
+var CatLogHandler;
+var init_errorHandler = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/core/errorHandler.js"() {
+    CatLogHandler = class {
+      constructor() {
+      }
+      /**
+       * Método principal que convierte y modifica los eventos para cuando hay un error en la API, siendo más detallada al respecto y con guías.
+       * @param {*} e Error en concreto que sucedió.
+       * @param {string} ctxName Evento en concreto donde sucedió el error.
+       * @param {?string} [registrationTrace] (Opcional) El track en concreto donde haya sucedido el error.
+       * @author HaJuegos - 31-03-2026
+       * @public
+       * @static
+       */
+      static handleError(e, ctxName, registrationTrace) {
+        const error = e;
+        let isInfoLevel = false;
+        let logMessage = `
+\xA7c=== [CATLOG ERROR] ===\xA7r
+`;
+        logMessage += `\xA7eContexto:\xA7r ${ctxName}
+`;
+        logMessage += `\xA7cMotivo:\xA7r ${error.message}
+`;
+        if (error.message.includes("restricted execution")) {
+          logMessage += `\xA7b[TIP]:\xA7r Envuelve tu logica dentro de un 'worldToolsSimplified.setRun()' o usa async.
+`;
+        } else if (error.message.includes("early execution")) {
+          logMessage += `\xA7b[TIP]:\xA7r Mueve este codigo al evento 'onWorldReady' para asegurarte de que los datos existan.
+`;
+        } else if (error.message.includes("Entity being invalid") || error.message.includes("has the Entity been removed")) {
+          logMessage += `\xA7b[TIP]:\xA7r La entidad ya fue eliminada del mundo. Verifica si es valida con 'if (entity.isValid)' antes de intentar algo con ella.
+`;
+        } else if (error.message.includes("not in a chunk currently loaded")) {
+          isInfoLevel = true;
+        }
+        const execStack = error.stack?.split("\n").find((line) => line.includes("at ") && !line.includes("BaseEventManager") && !line.includes("CatlogErrorHandler") && !line.includes("WorldToolsSimplified"));
+        if (execStack) {
+          logMessage += `\xA74[Fallo exacto]:\xA7r ${execStack.trim()}
+`;
+        }
+        if (registrationTrace) {
+          const cleanTrace = registrationTrace.split("\n").filter((line) => line.includes("at ") && !line.includes("__require") && !line.includes("<anonymous>") && !line.includes("BaseEventManager") && !line.includes("CatlogErrorHandler") && !line.includes("WorldToolsSimplified")).map((line) => `  -> ${line.trim()}`).join("\n");
+          if (cleanTrace) {
+            logMessage += `\xA7a[Origen de la Ejecuci\xF3n]:\xA7r
+${cleanTrace}
+`;
+          }
+        }
+        logMessage += `\xA7c========================\xA7r`;
+        if (isInfoLevel) {
+          console.info(logMessage);
+        } else {
+          console.warn(logMessage);
+        }
+      }
+    };
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/core/eventsManager.js
+var BaseEventManager;
+var init_eventsManager = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/core/eventsManager.js"() {
+    init_errorHandler();
+    BaseEventManager = class {
+      /**
+       * Argumentos principales para instanciar un evento base creado con eventos relacionales.
+       * @constructor
+       * @param {EventRegister<T>} evnSignal Evento relacional a considerar.
+       * @param {string} evnName Nombre Simplificado dado a este evento relacional a considerar.
+       * @author HaJuegos - 15-07-2026
+       */
+      constructor(evnSignal, evnName) {
+        this.evnSignal = evnSignal;
+        this.evnName = evnName;
+        this.callbacks = [];
+        this.isSub = false;
+      }
+      /**
+       * Método que registra el callback para los eventos relacionales del evento final. Internamente solo existe un único suscrito por evento; Entonces los callbacks adicionales se agregan a un array y se ejecutan dentro del mismo listener.
+       * @param callback La lógica individual del evento final.
+       * @version 2 Cambio total de instancias en su formato de registro para optimizaciones internas.
+       * @returns {void}
+       * @public
+       * @author HaJuegos - 15-07-2026
+       */
+      register(callback) {
+        const registrationTrace = new Error().stack;
+        this.callbacks.push({ fn: callback, trance: registrationTrace });
+        if (!this.isSub) {
+          this.isSub = true;
+          this.evnSignal.subscribe((args) => {
+            for (const { fn, trance } of this.callbacks) {
+              try {
+                fn(args);
+              } catch (e) {
+                CatLogHandler.handleError(e, `Evento ${this.evnName}`, trance);
+              }
+            }
+          });
+        }
+      }
+      /**
+       * Método que elimina un callback previamente registrado.
+       * @param {(args: T) => void} callback Referencia exacta a la función registrada en el register.
+       * @public
+       * @author HaJuegos - 15-07-2026
+       */
+      unregister(callback) {
+        this.callbacks = this.callbacks.filter((c) => c.fn != callback);
+      }
+    };
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/afterEventsSimplifiedManager.js
+import * as mc from "@minecraft/server";
+var AfterEventsSimplified, afterEventsSimplified;
+var init_afterEventsSimplifiedManager = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/afterEventsSimplifiedManager.js"() {
+    init_eventsManager();
+    AfterEventsSimplified = class {
+      /**
+       * Eventos que se inicializan cuando la clase es llamada o inicializada.
+       * @constructor
+       */
+      constructor() {
+        this.entityDieManager = new BaseEventManager(mc.world.afterEvents.entityDie, "AfterEntityDie");
+        this.playerSpawnManager = new BaseEventManager(mc.world.afterEvents.playerSpawn, "AfterPlayerSpawn");
+        this.worldLoadManager = new BaseEventManager(mc.world.afterEvents.worldLoad, "AfterWorldLoad");
+        this.chatSendManager = new BaseEventManager(mc.world.afterEvents.chatSend, "AfterChatSend");
+        this.itemUseManager = new BaseEventManager(mc.world.afterEvents.itemUse, "AfterItemUse");
+        this.explosionManager = new BaseEventManager(mc.world.afterEvents.explosion, "AfterExplodes");
+        this.onProjectileHitEntityManager = new BaseEventManager(mc.world.afterEvents.projectileHitEntity, "AfterProyectileHitEntity");
+        this.onProjectileHitBlockManager = new BaseEventManager(mc.world.afterEvents.projectileHitBlock, "AfterProyectileHitBlock");
+        this.onHitEntityManager = new BaseEventManager(mc.world.afterEvents.entityHitEntity, "AfterHitEntity");
+        this.onEntityHurtManager = new BaseEventManager(mc.world.afterEvents.entityHurt, "AfterHurtEntity");
+        this.onHealthEntityChangeManager = new BaseEventManager(mc.world.afterEvents.entityHealthChanged, "AfterHealthChangeEntity");
+        this.onChangeDimensionManager = new BaseEventManager(mc.world.afterEvents.playerDimensionChange, "AfterChangeDimension");
+        this.interactEntityManager = new BaseEventManager(mc.world.afterEvents.playerInteractWithEntity, "AfterInteractEntity");
+        this.interactBlockManager = new BaseEventManager(mc.world.afterEvents.playerInteractWithBlock, "AfterInteractBlock");
+        this.entitySpawnsManager = new BaseEventManager(mc.world.afterEvents.entitySpawn, "AfterEntitySpawns");
+        this.effectAddManager = new BaseEventManager(mc.world.afterEvents.effectAdd, "AfterEffectAdd");
+        this.placeBlockManager = new BaseEventManager(mc.world.afterEvents.playerPlaceBlock, "AfterPlaceBlock");
+        this.breakBlockManager = new BaseEventManager(mc.world.afterEvents.playerBreakBlock, "AfterBreakBlock");
+        this.dataEventsManager = new BaseEventManager(mc.world.afterEvents.dataDrivenEntityTrigger, "AfterDataEvents");
+        this.changeInvManager = new BaseEventManager(mc.world.afterEvents.playerInventoryItemChange, "AfterInvChangeOnPly");
+        this.onGetItem = new BaseEventManager(mc.world.afterEvents.entityItemPickup, "AfterEntityPickItem");
+        this.onDropItem = new BaseEventManager(mc.world.afterEvents.entityItemDrop, "AfterEntityDropItem");
+        this.playerJoinsManager = new BaseEventManager(mc.world.afterEvents.playerJoin, "AfterPlayerJoins");
+        this.playerLeavesManager = new BaseEventManager(mc.world.afterEvents.playerLeave, "AfterPlayerLeaves");
+        this.entityLoadWorld = new BaseEventManager(mc.world.afterEvents.entityLoad, "AfterEntityLoadInWorld");
+        this.entityHealh = new BaseEventManager(mc.world.afterEvents.entityHeal, "AfterEntityHealing");
+        this.entityRemove = new BaseEventManager(mc.world.afterEvents.entityRemove, "AfterEntityRemove");
+        this.entityTamed = new BaseEventManager(mc.world.afterEvents.entityTamed, "AfterEntityTamed");
+        this.soundCompleted = new BaseEventManager(mc.world.afterEvents.soundCompleted, "AfterSoundFinish");
+        this.weatherChange = new BaseEventManager(mc.world.afterEvents.weatherChange, "AfterWeatherChange");
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionado cuando una entidad muere de forma simplificada.
+       * @param {(args: mc.EntityDieAfterEvent) => void} callback Los argumentos del evento y su lógica.
+       * @returns {void}
+       * @author HaJuegos - 11-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onEntityDie((args) => {
+       *     const entity = args.deadEntity;
+       *     const source = args.damageSource;
+       *
+       *     console.warn(`La entidad ${entity.typeId} murió en ${entity.location} debido a ${source.cause}.`);
+       * });
+       * ```
+       */
+      onEntityDie(callback) {
+        this.entityDieManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionado cuando un jugador respawnea de forma simplificada.
+       * @param {(args: mc.PlayerSpawnAfterEvent) => void} callback Los argumentos del evento y su lógica.
+       * @returns {void}
+       * @author HaJuegos - 11-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onPlayerSpawns((args) => {
+       *     const ply = args.player;
+       *     const firstSpawn = args.initialSpawn;
+       *
+       *     console.warn(`El Jugador ${ply.name} spawneó en ${ply.location}. (Primera aparicion: ${firstSpawn})`);
+       * });
+       * ```
+       */
+      onPlayerSpawns(callback) {
+        this.playerSpawnManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un mundo se terminó de cargar de forma simplificada.
+       * @param {(args: mc.WorldLoadAfterEvent) => void} callback Los argumentos del evento y su lógica.
+       * @returns {void}
+       * @author HaJuegos - 11-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onWorldReady(() => {
+       *     console.warn(`El mundo se ha cargado correctamente`);
+       * });
+       * ```
+       */
+      onWorldReady(callback) {
+        this.worldLoadManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando se recibe un mensaje en el chat de forma simplificada.
+       * @param {(args: mc.ChatSendAfterEvent) => void} callback Los argumentos y lógica a ejecutar en el evento.
+       * @returns {void}
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onSendMessageChat((args) => {
+       *     console.warn(`El usuario ${args.sender.name} envio el mensaje ${args.message}`);
+       * });
+       * ```
+       */
+      onSendMessageChat(callback) {
+        this.chatSendManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando ya se usa el item de forma simplificada.
+       * @param {(args: mc.ItemUseAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 15-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onUseItem((args) => {
+       *     const ply = args.source;
+       *     const item = args.itemStack;
+       *
+       *     console.warn(`El Jugador ${ply.name} uso el item ${item.typeId}`);
+       * });
+       * ```
+       */
+      onUseItem(callback) {
+        this.itemUseManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando algo explotó de forma simplificada.
+       * @param {(args: mc.ExplosionAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 17-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onExplodes((args) => {
+       *     const source = args.source;
+       *
+       *     if (source && source.typeId == 'minecraft:creeper') {
+       *        console.warn(`Un creeper explotó.`);
+       *     }
+       * });
+       * ```
+       */
+      onExplodes(callback) {
+        this.explosionManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un proyectil golpea una entidad de forma simplificada.
+       * @param {(args: mc.ProjectileHitEntityAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 18-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onProjectileHitEntity((args) => {
+       *     const sourceEntity = args.source;
+       *     const hitEntity = args.getEntityHit().entity;
+       *
+       *     console.warn(`${source?.typeId} ha golpeado a ${hitEntity.typeId}.`);
+       * });
+       * ```
+       */
+      onProjectileHitEntity(callback) {
+        this.onProjectileHitEntityManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un proyectil golpea un bloque de forma simplificada.
+       * @param {(args: mc.ProjectileHitBlockAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 18-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onProjectileHitBlock((args) => {
+       *     const sourceEntity = args.source;
+       *     const hitBlock = args.getBlockHit().entity;
+       *
+       *     console.warn(`${source.typeId} ha golpeado al bloque ${hitBlock.typeId}.`);
+       * });
+       * ```
+       */
+      onProjectileHitBlock(callback) {
+        this.onProjectileHitBlockManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando se golpea una entidad de forma simplificada.
+       * @param {(args: mc.EntityHitEntityAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 18-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onHitEntity((args) => {
+       *    const sourceEntity = args.damagingEntity;
+       *    const hitEntity = args.hitEntity;
+       *
+       *    console.warn(`${sourceEntity.typeId} ha golpeado a ${hitEntity.typeId}`);
+       * });
+       * ```
+       */
+      onHitEntity(callback) {
+        this.onHitEntityManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando se lastima una entidad de forma simplificada.
+       * @param {(args: mc.EntityHurtAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 18-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onHurtEntity((args) => {
+       *    const source = args.damageSource;
+       *    const sourceEntity = source.damagingEntity;
+       *    const cause = source.cause;
+       *    const hitEntity = args.hurtEntity;
+       *
+       *    console.warn(`${sourceEntity.typeId} ha lastimado a ${hitEntity.typeId} mediante ${cause}`);
+       * });
+       * ```
+       */
+      onHurtEntity(callback) {
+        this.onEntityHurtManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando la vida de una entidad cambia de forma simplificada.
+       * @param {(args: mc.EntityHealthChangedAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 19-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onHealthEntityChange((args) => {
+       *    console.warn(`${args.entity.typeId} tenia ${args.oldValue} de vida y ahora tiene ${args.newValue}.`);
+       * });
+       * ```
+       */
+      onHealthEntityChange(callback) {
+        this.onHealthEntityChangeManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador cambia de dimensión de forma simplificada.
+       * @param {(args: mc.PlayerDimensionChangeAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onChangeDimension((args) => {
+       *     const ply = args.player;
+       *     const fromDime = args.fromDimension;
+       *     const toDime = args.toDimension;
+       *
+       *     console.warn(`${ply.name} estaba en el ${fromDime.id} y ahora está en ${toDime.id}.`);
+       * });
+       * ```
+       */
+      onChangeDimension(callback) {
+        this.onChangeDimensionManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador interactuó con una entidad de forma simplificada.
+       * @param {(args: mc.PlayerInteractWithEntityAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onInteractEntity((args) => {
+       *     const ply = args.player;
+       *     const hitEntity = args.target;
+       *
+       *     console.warn(`${ply.name} interactuó con ${hitEntity.typeId}.`);
+       * });
+       * ```
+       */
+      onInteractEntity(callback) {
+        this.interactEntityManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador interactuó con un bloque de forma simplificada.
+       * @param {(args: mc.PlayerInteractWithBlockAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onInteractBlock((args) => {
+       *     const ply = args.player;
+       *     const block = args.block;
+       *
+       *     console.warn(`${ply.name} interactuó con el bloque ${block.typeId}.`);
+       * });
+       * ```
+       */
+      onInteractBlock(callback) {
+        this.interactBlockManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad spawnea de forma simplificada.
+       * @param {(args: mc.EntitySpawnAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onEntitySpawns((args) => {
+       *     console.warn(`${args.entity.typeId} ha spawneado en el mundo`);
+       * });
+       * ```
+       */
+      onEntitySpawns(callback) {
+        this.entitySpawnsManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un efecto es añadido en una entidad o jugador de forma simplificada.
+       * @param {(args: mc.EffectAddAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onAddsEffect((args) => {
+       *     console.warn(`${args.entity.typeId} ahora tiene el efecto ${args.effect.displayName}.`);
+       * });
+       * ```
+       */
+      onAddsEffect(callback) {
+        this.effectAddManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un bloque es colocado de forma simplificada.
+       * @param {(args: mc.PlayerPlaceBlockAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onPlaceBlock((args) => {
+       *     console.warn(`${args.player.name} coloco el bloque ${args.block.typeId}.`);
+       * });
+       * ```
+       */
+      onPlaceBlock(callback) {
+        this.placeBlockManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un bloque es roto de forma simplificada.
+       * @param {(args: mc.PlayerBreakBlockAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 23-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onBreakBlock((args) => {
+       *     console.warn(`${args.player.name} rompio el bloque ${args.block.typeId}.`);
+       * });
+       * ```
+       */
+      onBreakBlock(callback) {
+        this.breakBlockManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad ejecuta uno o varios de sus eventos de su JSON para cambiar componentes, o también por comandos como /event. De forma más simple, sirve como un log de cuales component groups cambió la entidad en ese instante.
+       * @param {(args: mc.DataDrivenEntityTriggerAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 26-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.getEntityEvents((args) => {
+       *     const entity = args.entity;
+       *     const events = args.getModifiers();
+       *
+       *     if (entity.typeId == 'minecraft:player' && entity instanceof mc.Player) {
+       *        console.warn(`${entity.name} ha cambiado de componentes: ${JSON.stringify(events)}`);
+       *     }
+       * });
+       * ```
+       */
+      getEntityEvents(callback) {
+        this.dataEventsManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un item se remueve o añade a un inventario de un jugador de forma simplificada.
+       * @param {(args: mc.PlayerInventoryItemChangeAfterEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 01-04-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onPlyInvChange((args) => {
+       *     const previusItem = args.beforeItemStack;
+       *     const newItem = args.itemStack;
+       *     const ply = args.player;
+       *     const slotI = args.slot;
+       *     const invType = args.inventoryType;
+       *
+       *     console.warn(`${ply.name} previamente tenía el item ${previusItem.typeId} en el slot ${slotI} en el inventario ${invType}; Y ahora tiene el item ${newItem.typeId} en su lugar`);
+       * });
+       * ```
+       */
+      onPlyInvChange(callback) {
+        this.changeInvManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad obtiene items de forma simplificada.
+       * @param {(args: mc.EntityItemPickupAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 19-06-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onGetItemEntity((args) => {
+       *      const item = args.items;
+       *      const entity = args.entity;
+       *
+       *      console.log(`${entity.typeId} ha agarrado los items ${JSON.stringify(item)}.`);
+       * });
+       * ```
+       */
+      onGetItemEntity(callback) {
+        this.onGetItem.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad dropea items de forma simplificada.
+       * @param {(args: mc.EntityItemDropAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 19-06-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onDropItemEntity((args) => {
+       *      const item = args.items;
+       *      const entity = args.entity;
+       *
+       *      console.log(`${entity.typeId} ha dropeado los items ${JSON.stringify(item)}.`);
+       * });
+       * ```
+       */
+      onDropItemEntity(callback) {
+        this.onDropItem.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador se une al mundo de forma simplificada.
+       * @param {(args: mc.PlayerJoinAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 21-06-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onPlayerJoinsWorld((args) => {
+       *      const name = args.playerName;
+       *
+       *      console.log(`${name} entró al mundo.`);
+       * });
+       * ```
+       */
+      onPlayerJoinsWorld(callback) {
+        this.playerJoinsManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador se va del mundo de forma simplificada.
+       * @param {(args: mc.PlayerLeaveAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 21-06-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onPlayerLeavesWorld((args) => {
+       *      const name = args.playerName;
+       *
+       *      console.log(`${name} salió del mundo.`);
+       * });
+       * ```
+       */
+      onPlayerLeavesWorld(callback) {
+        this.playerLeavesManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad se carga en el mundo de forma simplificada.
+       * @param {(args: mc.EntityLoadAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 21-07-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onEntityLoadInWorld((args) => {
+       *      const typeId = args.entity;
+       *
+       *      console.log(`${typeId} se cargó en el mundo previamente.`);
+       * });
+       * ```
+       */
+      onEntityLoadInWorld(callback) {
+        this.entityLoadWorld.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad se curó de diferentes formas de forma simplificada.
+       * @param {(args: mc.EntityHealBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 19-06-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onEntityHeals((args) => {
+       *      const sourceHealh = args.healSource;
+       *      const entity = args.healedEntity;
+       *
+       *      console.log(`${entity.typeId} se regeneró por vía ${sourceHealh.cause}.`);
+       * });
+       * ```
+       */
+      onEntityHeals(callback) {
+        this.entityHealh.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad es removida del mundo detectando solo su ID de forma simplificada.
+       * @param {(args: mc.EntityRemoveAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @public
+       * @author HaJuegos - 06-08-2026
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * afterEventsSimplified.onEntityRemove((args) => {
+       *      const typeID = args.typeId;
+       *      const entityID = args.removedEntityId;
+       *
+       *      console.log(`${typeId} fue eliminado del mundo, su id era ${entityID}.`);
+       * });
+       * ```
+       */
+      onEntityRemove(callback) {
+        this.entityRemove.register(callback);
+      }
+      /**
+       * Metodo auxiliar que ejecuta los eventos relacionados cuando una entidad es domada de forma simplificada.
+       * @param {(args: mc.EntityTamedAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 30-08-2026
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @public
+       * @example
+       * ```ts
+       * afterEventsSimplified.onTamedEntity((args) => {
+       *      const { tamingEntity: sourceEntity, entity } = args
+       *
+       *      console.log(`${sourceEntity.typeId} ha domando a la entidad ${entity.typeId}.`);
+       * });
+       * ```
+       */
+      onTamedEntity(callback) {
+        this.entityTamed.register(callback);
+      }
+      /**
+       * Metodo auxiliar que ejecuta los eventos relacionados cuando un sonido termina de forma simplificada.
+       * @param {(args: mc.SoundCompletedAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 30-08-2026
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @public
+       * @example
+       * ```ts
+       * afterEventsSimplified.onSoundFinish((args) => {
+       *      const { soundInstanceId: idSound } = args
+       *
+       *      console.log(`${idSound} ha terminado o ha dejado de sonar.`);
+       * });
+       * ```
+       */
+      onSoundFinish(callback) {
+        this.soundCompleted.register(callback);
+      }
+      /**
+       * Metodo auxiliar que ejecuta los eventos relacionados cuando el clima ha cambiado en una dimension de forma simplificada.
+       * @param {(args: mc.WeatherChangeAfterEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 30-08-2026
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @public
+       * @example
+       * ```ts
+       * afterEventsSimplified.onWeatherChange((args) => {
+       *      const { dimension, newWeather, previousWeather } = args
+       *
+       *      console.log(`En la dimension ${dimension.id} el clima ha pasado de ${previousWeather} a ${newWeather}.`);
+       * });
+       * ```
+       */
+      onWeatherChange(callback) {
+        this.weatherChange.register(callback);
+      }
+    };
+    afterEventsSimplified = new AfterEventsSimplified();
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/beforeEventsSimplifiedManager.js
+import * as mc2 from "@minecraft/server";
+var BeforeEventsSimplified, beforeEventsSimplified;
+var init_beforeEventsSimplifiedManager = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/beforeEventsSimplifiedManager.js"() {
+    init_eventsManager();
+    BeforeEventsSimplified = class {
+      /**
+       * Eventos que se inicializan cuando la clase es llamada o inicializada.
+       * @constructor
+       */
+      constructor() {
+        this.startUpManager = new BaseEventManager(mc2.system.beforeEvents.startup, "BeforeStartup");
+        this.shutDownManager = new BaseEventManager(mc2.system.beforeEvents.shutdown, "BeforeShutdown");
+        this.interactBlockManager = new BaseEventManager(mc2.world.beforeEvents.playerInteractWithBlock, "BeforeInteractBlock");
+        this.chatSendManager = new BaseEventManager(mc2.world.beforeEvents.chatSend, "BeforeChatSend");
+        this.itemUseManager = new BaseEventManager(mc2.world.beforeEvents.itemUse, "BeforeItemUse");
+        this.explosionManager = new BaseEventManager(mc2.world.beforeEvents.explosion, "BeforeExplodes");
+        this.interactEntityManager = new BaseEventManager(mc2.world.beforeEvents.playerInteractWithEntity, "BeforeInteractEntity");
+        this.effectAddManager = new BaseEventManager(mc2.world.beforeEvents.effectAdd, "BeforeAddEffect");
+        this.placeBlockManager = new BaseEventManager(mc2.world.beforeEvents.playerPlaceBlock, "BeforePlayerPlaceBlock");
+        this.breakBlockManager = new BaseEventManager(mc2.world.beforeEvents.playerBreakBlock, "BeforePlayerBreakBlock");
+        this.entityHurtManager = new BaseEventManager(mc2.world.beforeEvents.entityHurt, "BeforeEtntityHurt");
+        this.entityItemPickUpManager = new BaseEventManager(mc2.world.beforeEvents.entityItemPickup, "BeforeEntityItemPickup");
+        this.entityHealing = new BaseEventManager(mc2.world.beforeEvents.entityHeal, "BeforeEntityHealing");
+        this.entityRemove = new BaseEventManager(mc2.world.beforeEvents.entityRemove, "BeforeEntityRemove");
+        this.entityTamed = new BaseEventManager(mc2.world.beforeEvents.entityTamed, "BeforeEntityTamed");
+        this.weatherChange = new BaseEventManager(mc2.world.beforeEvents.weatherChange, "BeforeWeatherChange");
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando el add-on se carga por primera vez
+       * @param {(args: mc.StartupEvent) => void} callback Los argumentos del evento y su lógica.
+       * @returns {void}
+       * @author HaJuegos - 11-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onAddonStarts((args) => {
+       *     console.warn('El addon está iniciando');
+       * });
+       * ```
+      */
+      onAddonStarts(callback) {
+        this.startUpManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un mundo o servidor se cierra de forma simplificada.
+       * @param {(args: mc.ShutdownEvent) => void} callback Los argumentos del evento y su lógica.
+       * @returns {void}
+       * @author HaJuegos - 11-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onAddonStops((args) => {
+       *     console.warn('El addon se está deteniendo');
+       * });
+       * ```
+      */
+      onAddonStops(callback) {
+        this.shutDownManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando se interactúa con un bloque antes de que pase de forma simplificada.
+       * @param {(args: mc.PlayerInteractWithBlockBeforeEvent) => void} callback Los argumentos del evento y su lógica.
+       * @returns {void}
+       * @author HaJuegos - 11-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onInteractBlock((args) => {
+       *     console.warn(`Se está interactuando con el bloque ${args.block.typeId}`);
+       * });
+       * ```
+      */
+      onInteractBlock(callback) {
+        this.interactBlockManager.register(callback);
+      }
+      /**
+       * Método auxiliar que controla los eventos del chat, manejando los mensajes enviados antes de que se muestren.
+       * @param {(args: mc.ChatSendBeforeEvent) => void} callback Los argumentos del evento y su lógica.
+       * @returns {void}
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.chatManager((args) => {
+       *     console.warn(`El usuario ${args.sender.name} ha enviado el mensaje ${args.message}`);
+       *     args.cancel = true; // El mensaje que envió el jugador es cancelado.
+       * });
+       * ```
+       */
+      chatManager(callback) {
+        this.chatSendManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando se va a usar un item de forma simplificada.
+       * @param {(args: mc.ItemUseBeforeEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 15-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onUseItem((args) => {
+       *     console.warn(`Se está usando el item ${args.itemStack.typeId}.`);
+       *     args.cancel = true;
+       * });
+       * ```
+       */
+      onUseItem(callback) {
+        this.itemUseManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando algo está a punto de explotar de forma simplificada.
+       * @param {(args: mc.ExplosionBeforeEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 17-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onExplosion((args) => {
+       *     const source = args.source;
+       *
+       *     if (source && source.typeId == 'minecraft:creeper') {
+       *         console.warn(`Un creeper está a punto de explotar.`);
+       *         args.cancel = true; // Ya no va a explotar.
+       *     }
+       * });
+       * ```
+       */
+      onExplosion(callback) {
+        this.explosionManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador va a interactuar con una entidad de forma simplificada.
+       * @param {(args: mc.PlayerInteractWithEntityBeforeEvent) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onInteractEntity((args) => {
+       *     const ply = args.player;
+       *     const hitEntity = args.target;
+       *
+       *     console.warn(`${ply.name} está interactuando con ${hitEntity.typeId}.`);
+       *
+       *     args.cancel = true; // ya no se puede.
+       * });
+       * ```
+       */
+      onInteractEntity(callback) {
+        this.interactEntityManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un efecto está a punto de darse a una entidad de forma simplificada.
+       * @param {(args: mc.EffectAddBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onEffectAdds((args) => {
+       *     console.warn(`${args.entity.typeId} tendrá el efecto ${args.effect.displayName}.`);
+       *     args.cancel = true; // Ahora ya no sucede.
+       * });
+       * ```
+       */
+      onEffectAdds(callback) {
+        this.effectAddManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador va a colocar un bloque de forma simplificada.
+       * @param {(args: mc.PlayerPlaceBlockBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 20-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onPlaceBlock((args) => {
+       *     console.warn(`${args.player.name} va a colocar el bloque ${args.block.typeId}.`);
+       *     args.cancel = true; // Ahora ya no puede colocarlo
+       * });
+       * ```
+       */
+      onPlaceBlock(callback) {
+        this.placeBlockManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador va a romper un bloque de forma simplificada.
+       * @param {(args: mc.PlayerBreakBlockBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 23-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onBreakBlock((args) => {
+       *     console.warn(`${args.player.name} va a romper el bloque ${args.block.typeId}.`);
+       *     args.cancel = true; // Ahora ya no puede romperlo
+       * });
+       * ```
+       */
+      onBreakBlock(callback) {
+        this.breakBlockManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad va a ser lastimada de forma simplificada.
+       * @param {(args: mc.EntityHurtBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 19-06-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onEntityHurt((args) => {
+       *      const hurtEntity = args.hurtEntity;
+       *      const source = args.damageSource;
+       *      const sourceEntity = source.damagingEntity;
+       *
+       *      if (hurtEntity && sourceEntity) {
+       *          console.log(`${sourceEntity.typeId} va a lastimar a ${hurtEntity.typeId}.`);
+       *
+       *          args.cancel = true; // Ya no funciona
+       *      }
+       * });
+       * ```
+       */
+      onEntityHurt(callback) {
+        this.entityHurtManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad va a agarrar un item forma simplificada.
+       * @param {(args: mc.EntityItemPickupBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 19-06-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onItemPickupEntity((args) => {
+       *      const item = args.item;
+       *      const entity = args.entity;
+       *
+       *      console.log(`${entity.typeId} va a obtener el item ${item.typeId}.`);
+       *      args.cancel = true; // Ya no funciona
+       * });
+       * ```
+       */
+      onItemPickupEntity(callback) {
+        this.entityItemPickUpManager.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad se va a curar de diferentes formas de forma simplificada.
+       * @param {(args: mc.EntityHealBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 19-06-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onEntityHeal((args) => {
+       *      const sourceHealh = args.healSource;
+       *      const entity = args.healedEntity;
+       *
+       *      console.log(`${entity.typeId} se va a regenerar con ${sourceHealh.cause}.`);
+       *      args.cancel = true; // Ya no funciona
+       * });
+       * ```
+       */
+      onEntityHeal(callback) {
+        this.entityHealing.register(callback);
+      }
+      /**
+       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad va a ser removida del mundo de forma simplificada.
+       * @param {(args: mc.EntityRemoveBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @public
+       * @author HaJuegos - 06-08-2026
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onEntityRemoved((args) => {
+       *      const entityRemoved = args.removedEntity;
+       *
+       *      console.log(`${entityRemoved.typeId} va a ser eliminado del mundo.`);
+       *      args.cancel = true; // Ya no se eliminará.
+       * });
+       * ```
+       */
+      onEntityRemoved(callback) {
+        this.entityRemove.register(callback);
+      }
+      /**
+       * Metodo auxiliar que ejecuta los eventos relacionados cuando una entidad va a ser domada de forma simplificada.
+       * @param {(args: mc.EntityTamedBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 30-08-2026
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @public
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onEntityTame((args) => {
+       *      const { tamingEntity: sourceEntity, entity } = args
+       *
+       *      console.log(`${sourceEntity.typeId} va a domar a la entidad ${entity.typeId}.`);
+       *
+       *      args.cancel = true; // Ya no puede ser domada.
+       * });
+       * ```
+       */
+      onEntityTame(callback) {
+        this.entityTamed.register(callback);
+      }
+      /**
+       * Metodo auxiliar que ejecuta los eventos relacionados cuando el clima va a cambiar de forma simplificada.
+       * @param {(args: mc.WeatherChangeBeforeEvent) => void} callback Los eventos relacionados.
+       * @returns {void}
+       * @author HaJuegos - 30-08-2026
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @public
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onWeatherChange((args) => {
+       *      const { previousWeather, newWeather } = args
+       *
+       *      console.log(`El clima va a pasar de ${previousWeather} a ${newWeather}.`);
+       *
+       *      args.cancel = true; // Ya no va a ocurrir.
+       * });
+       * ```
+       */
+      onWeatherChange(callback) {
+        this.weatherChange.register(callback);
+      }
+      // Metodos no auxiliares
+      /**
+       * Método auxiliar que registra y ejecuta los eventos relacionados cuando se quiere registrar un custom component de un bloque.
+       * @param {string} nameComponent Nombre del componente en cuestión a registrar.
+       * @param {mc.BlockCustomComponent} eventsComponent Los eventos del componente que se van a ejecutar.
+       * @author HaJuegos - 17-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * // Método casual
+       * beforeEventsSimplified.createBlockComponent('ha:custom_component', {
+       *    onBreak(arg) {
+       *       console.warn(`El bloque ${args.block.typeId} se rompió.`);
+       *    }
+       * } as mc.BlockCustomComponent);
+       *
+       * // Método más ordenado
+       * const events: mc.BlockCustomComponent = {
+       *    onBreak(arg) {
+       *       console.warn(`El bloque ${args.block.typeId} se rompió.`);
+       *    }
+       * }
+       *
+       * beforeEventsSimplified.createBlockComponent('ha:custom_component', events);
+       * ```
+       */
+      createBlockComponent(nameComponent, eventsComponent) {
+        this.onAddonStarts((args) => {
+          args.blockComponentRegistry.registerCustomComponent(nameComponent, eventsComponent);
+        });
+      }
+      /**
+       * Método auxiliar que registra y ejecuta los eventos relacionados cuando se quiere registrar un custom component de un item.
+       * @param {string} nameComponent Nombre del componente en cuestión a registrar.
+       * @param {mc.ItemCustomComponent} eventsComponent Los eventos del componente que se van a ejecutar.
+       * @author HaJuegos - 17-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * // Método casual
+       * beforeEventsSimplified.createItemComponent('ha:custom_component', {
+       *    onConsume(arg) {
+       *       console.warn(`El item ${args.itemStack.typeId} fue consumido.`);
+       *    }
+       * } as mc.ItemCustomComponent);
+       *
+       * // Método más ordenado
+       * const events: mc.ItemCustomComponent = {
+       *    onConsume(arg) {
+       *       console.warn(`El item ${args.itemStack.typeId} fue consumido.`);
+       *    }
+       * }
+       *
+       * beforeEventsSimplified.createItemComponent('ha:custom_component', events);
+       * ```
+       */
+      createItemComponent(nameComponent, eventsComponent) {
+        this.onAddonStarts((args) => {
+          args.itemComponentRegistry.registerCustomComponent(nameComponent, eventsComponent);
+        });
+      }
+      /**
+       * Método auxiliar que registra y ejecuta los eventos relacionados cuando se quiere registrar un comando custom al juego.
+       * @param {mc.CustomCommand} commandData Los datos del comando a registrar
+       * @param {(origin: mc.CustomCommandOrigin, ...args: any[]) => mc.CustomCommandResult | undefined} callback Los eventos a ejecutar después de haber sido activado o usado el comando.
+       * @param {?Record<string, string[]>} [customEnums] (Opcional) Opciones o valores que se registran junto con el comando en caso de ser necesario. Por ej: para que aparezca "ha juegos" al momento de poner este comando, lo considere un valor rellenable automático.
+       * @author HaJuegos - 17-03-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * const commandData: mc.CustomCommand = {
+       *     name: 'ha:command_test',
+       *     description: 'Este es un comando de prueba',
+       *     permissionLevel: mc.CommandPermissionLevel.Admin
+       * };
+       *
+       * beforeEventsSimplified.createCustomCommand(commandData, ((args => {
+       *     const entity = args.sourceEntity as mc.Player;
+       *
+       *     console.warn(`El jugador ${entity.name} ha usado el comando custom.`);
+       * })));
+       * ```
+       */
+      createCustomCommand(commandData, callback, customEnums) {
+        this.onAddonStarts((args) => {
+          if (customEnums) {
+            for (const [enumName, enumValues] of Object.entries(customEnums)) {
+              args.customCommandRegistry.registerEnum(enumName, enumValues);
+            }
+          }
+          args.customCommandRegistry.registerCommand(commandData, callback);
+        });
+      }
+      /**
+       * Método auxiliar que registra una nueva dimensión custom en el mundo. Basado en su prefix.
+       * @param {string} prefixDimension Prefix de la dimensión en cuestión a crear.
+       * @returns {void}
+       * @author HaJuegos - 15-07-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * // Esto creará la nueva dimensión 'ha:backrooms'. Pero es una dimensión totalmente vacía. Debes crear todo a base de feature y feature rules.
+       * beforeEventsSimplified.createCustomDimension('ha:backrooms');
+       * ```
+       */
+      createCustomDimension(prefixDimension) {
+        this.onAddonStarts((args) => {
+          args.dimensionRegistry.registerCustomDimension(prefixDimension);
+        });
+      }
+    };
+    beforeEventsSimplified = new BeforeEventsSimplified();
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/worldToolsSimplifiedManager.js
+import * as mc3 from "@minecraft/server";
+var WorldToolsSimplified, worldToolsSimplified;
+var init_worldToolsSimplifiedManager = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/worldToolsSimplifiedManager.js"() {
+    init_eventsManager();
+    init_errorHandler();
+    WorldToolsSimplified = class {
+      /**
+       * Eventos que se inicializan cuando la clase es llamada o inicializada.
+       * @constructor
+       */
+      constructor() {
+        this.scriptEventManager = new BaseEventManager(mc3.system.afterEvents.scriptEventReceive, "ScriptEventSensor");
+      }
+      /**
+       * Método auxiliar que programa la ejecución de una lógica para el siguiente tick del juego. Ideal principalmente para los eventos before para saltarse la ejecución restringida.
+       * @param {() => void} callback Los eventos o lógica en cuestión a ejecutar.
+       * @returns {Promise<void>}
+       * @author HaJuegos - 15-03-2026
+       * @async Es un método asíncrono, principalmente para terminar el flujo después de que ocurra los eventos.
+       * @public
+       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
+       * @example
+       * ```ts
+       * beforeEventsSimplified.onUseItem((args) => {
+       *    const ply = args.source;
+       *    const item = args.itemStack;
+       *    const plyArmor = ply.getComponent(EntityComponentTypes.Equippable)
+       *
+       *    worldToolsSimplified.setRun(() => {
+       *        // Esto ya funciona porque pasa después de un tick y no hay restricciones.
+       *        plyArmor.setEquipment(EquipmentSlot.Offhand, item);
+       *    });
+       * });
+       * ```
+       */
+      async setRun(callback) {
+        return new Promise((resolve) => {
+          const registrationTrace = new Error().stack;
+          const currentRun = mc3.system.run(() => {
+            try {
+              callback();
+              mc3.system.clearRun(currentRun);
+              resolve();
+            } catch (e) {
+              CatLogHandler.handleError(e, "WorldsetRun", registrationTrace);
+              resolve();
+            }
+          });
+        });
+      }
+      /**
+       * Método auxiliar que establece una serie de eventos con un pequeño retraso determinado. Luego de terminar el retraso, elimina la tarea para no dejarlo en memoria.
+       * @param {() => void} callback Los eventos en cuestión a ejecutar.
+       * @param {number} ticksDelay Los tiempos en ticks que se tardará para ejecutarse.
+       * @returns {Promise<void>}
+       * @author HaJuegos - 13-03-2026
+       * @async Es un método asíncrono, debido a que se limpia después de la ejecución.
+       * @public
+       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * worldToolsSimplified.setDelay(() => {
+       *    console.warn('Este evento se ejecutará después de 5 segundos');
+       * } worldToolsSimplified.convertSecondsToTicks(5))
+       * ```
+       */
+      async setDelay(callback, ticksDelay) {
+        return new Promise((resolve) => {
+          const registrationTrace = new Error().stack;
+          const currentJob = mc3.system.runTimeout(() => {
+            try {
+              callback();
+              mc3.system.clearRun(currentJob);
+              resolve();
+            } catch (e) {
+              CatLogHandler.handleError(e, "worldSetDelay", registrationTrace);
+              resolve();
+            }
+          }, ticksDelay);
+        });
+      }
+      /**
+       * Método auxiliar que establece una serie de eventos en concreto que se mantendrán en loop.
+       * @param {() => void} callback Los eventos en concreto.
+       * @param {number} loopTicks El número en ticks que se repetirá este loop.
+       * @returns {number} Devuelve el ID de la memoria, del proceso loop creado.
+       * @author HaJuegos - 13-03-2026
+       * @public
+       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * worldToolsSimplified.setLoop(() => {
+       *    console.warn('Este evento se ejecutará cada 1 segundo');
+       * } worldToolsSimplified.convertSecondsToTicks(1))
+       * ```
+       */
+      setLoop(callback, loopTicks) {
+        const registrationTrace = new Error().stack;
+        return mc3.system.runInterval(() => {
+          try {
+            callback();
+          } catch (e) {
+            CatLogHandler.handleError(e, "worldSetLoop", registrationTrace);
+          }
+        }, loopTicks);
+      }
+      /**
+       * Método auxiliar que detiene un proceso looping creado previamente por medio de su ID generado en memoria.
+       * @param {number} runID ID del proceso generado.
+       * @author HaJuegos - 13-03-2026
+       * @public
+       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * // Se crea el evento primero, generado su ID en memoria.
+       * const idLoop = worldToolsSimplified.setLoop(() => {
+       *   console.warn('este evento se esta repitiendo cada 1 segundo');
+       * } worldToolsSimplified.convertSecondsToTicks(1))
+       *
+       * // Con el ID generado en memoria, lo usamos para detenerlo cuando queramos.
+       * worldToolsSimplified.stopLoop(idLoop);
+       * ```
+       */
+      stopLoop(runID) {
+        mc3.system.clearRun(runID);
+      }
+      /**
+       * Método auxiliar que envía un mensaje global al mundo en formato string o rawmessage.
+       * @public
+       * @param {string | mc.RawMessage | (string | mc.RawMessage)[]} message Mensaje o RawMessage en concreto a enviar.
+       * @author HaJuegos - 12-03-2026
+       * @example
+       * ```ts
+       * // Este es un mensaje simple
+       * worldToolsSimplified.sendMessageGlobal('hola soy un mensaje');
+       *
+       * // Este es un mensaje RawText
+       * worldToolsSimplified.sendMessageGlobal({ rawtext: 'chat.test.message' });
+       * ```
+       */
+      sendMessageGlobal(message) {
+        mc3.world.sendMessage(message);
+      }
+      /**
+       * Método auxiliar que maneja la lógica de los eventos cuando se ejecuta el comando scriptevent.
+       * @param {((args: mc.ScriptEventCommandMessageAfterEvent) => void)} callback La lógica del evento en concreto.
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * worldToolsSimplified.listenerScriptEvents((args) => {
+       *   console.warn(`Se ha ejecutado el comando /scriptevent con el ID ${args.id}`)
+       * });
+       * ```
+       */
+      listenerScriptEvents(callback) {
+        this.scriptEventManager.register(callback);
+      }
+      /**
+       * Método auxiliar que obtiene un objective de scoreboard, en caso de no encontrarlo, pues lo crea. Para devolver el mismo objectivo de forma simplificada.
+       * @param {string} idObj ID del objectivo a encontrar o crear en cuestión.
+       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo a colocar cuando se cree.
+       * @returns {(mc.ScoreboardObjective | undefined)} Devuelve el objectivo si todo salió correcto, sino será un error.
+       * @author HaJuegos - 31-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * // Esto obtiene y crea el objectivo en caso de no estar creado.
+       * const obj = worldToolsSimplified.getOrCreateScorebordObj('conteo', 'Conteo');
+       * ```
+       */
+      getOrCreateScorebordObj(idObj, nameDisplayObj) {
+        const registrationTrace = new Error().stack;
+        try {
+          const scoreboard = mc3.world.scoreboard;
+          let obj = scoreboard.getObjective(idObj);
+          if (!obj) {
+            obj = scoreboard.addObjective(idObj, nameDisplayObj);
+          }
+          return obj;
+        } catch (e) {
+          CatLogHandler.handleError(e, "getOrCreateObj", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Método auxiliar que obtiene el score de un jugador en concreto de un objective de scoreboard. En caso de que el objective no esté creado, se creará. De forma simplificada.
+       * @param {mc.Entity | mc.Player | string} targetEntity Target en concreto a obtener su score.
+       * @param {string} idObj ID del objectivo el concreto a obtener el score.
+       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo en caso de que el mismo no esté creado, a asignar.
+       * @returns {number} Devuelve el score total que tiene el jugador si todo esta bien, sino siempre será 0.
+       * @author HaJuegos - 31-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * // Esto crea el objective en caso de no estar creado y luego, obtiene el score que tiene el jugador, en este caso sería 0.
+       * const score = worldToolsSimplified.getPlyScoreInObj(ply, 'conteo', 'Conteo');
+       * ```
+       */
+      getScoreInObj(targetEntity, idObj, nameDisplayObj) {
+        const registrationTrace = new Error().stack;
+        try {
+          const scoreboard = mc3.world.scoreboard;
+          let obj = scoreboard.getObjective(idObj);
+          if (!obj) {
+            obj = scoreboard.addObjective(idObj, nameDisplayObj);
+          }
+          if (!obj.hasParticipant(targetEntity)) {
+            return 0;
+          }
+          const score = obj.getScore(targetEntity) ?? 0;
+          return score;
+        } catch (e) {
+          CatLogHandler.handleError(e, "getPlyScore", registrationTrace);
+          return 0;
+        }
+      }
+      /**
+       * Método auxiliar que modifica el score de un jugador en concreto en un objectivo. En caso de que no esté creado el objectivo, se creará automáticamente. De forma simplificada.
+       * @param {mc.Entity | mc.Player | string} targetEntity Target en concreto a modificar.
+       * @param {string} idObj ID del objectivo en concreto.
+       * @param {('set' | 'add')} changeMode Método específico a modificar del jugador. En caso de set, es que sería un valor no acumulable. Por ej: si antes tenía uno y se establece 2, pues será 2 sin más; Caso contrario con add, que es acumulativo y sirve fórmulas negativas. Por ej: Misma situación, donde tienes 1 y adicionas 1 más, pues dará 2.
+       * @param {number} newScore El nuevo valor a añadir o cambiar.
+       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo en caso de no estar creado.
+       * @returns {(number | undefined)} El nuevo score cambiado del jugador si todo sale correcto, sino será un error.
+       * @author HaJuegos - 31-03-2026
+       * @public
+       * @example
+       * ```ts
+       * // Este método realizará lo siguiente: En caso de que conteo no exista como objectivo, lo crea, luego, establece al jugador en concreto 1 en el objectivo y por último, devuelve dicho valor modificado.
+       * const newScore = worldToolsSimplified.changePlyScoreInObj(player, 'conteo', 'set', 1, 'Conteo');
+       * ```
+       */
+      changeScoreInObj(targetEntity, idObj, changeMode, newScore, nameDisplayObj) {
+        const registrationTrace = new Error().stack;
+        try {
+          const scoreboard = mc3.world.scoreboard;
+          let obj = scoreboard.getObjective(idObj);
+          if (!obj) {
+            obj = scoreboard.addObjective(idObj, nameDisplayObj);
+          }
+          if (changeMode == "set") {
+            obj.setScore(targetEntity, newScore);
+          } else {
+            obj.addScore(targetEntity, newScore);
+          }
+          return obj.getScore(targetEntity) ?? 0;
+        } catch (e) {
+          CatLogHandler.handleError(e, "changePlyScore", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Método auxiliar que muestra un objective creado en concreto, en caso de no estar creado, lo hará; A una zona de la pantalla, ya sea como sidebar o list de forma simplificada.
+       * @param {string} idObj ID del objective en cuestión a obtener o crear.
+       * @param {mc.DisplaySlotId} displaySlot Slot donde se establecerá el objectivo.
+       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo que tendrá en caso de que no esté creado.
+       * @param {?mc.ObjectiveSortOrder} [order] (Opcional) Orden del mismo objectivo.
+       * @author HaJuegos - 31-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * // Esto mostrará a conteo en el sidebar de la pantalla de orden descendente. En caso de no estar creado, lo crea primero.
+       * worldToolsSimplified.setObjInDisplay('conteo', mc.DisplaySlotId.Sidebar, 'Conteo', mc.ObjectiveSortOrder.Descending);
+       * ```
+       */
+      setObjInDisplay(idObj, displaySlot, nameDisplayObj, order) {
+        const registrationTrace = new Error().stack;
+        try {
+          const scoreboard = mc3.world.scoreboard;
+          let obj = scoreboard.getObjective(idObj);
+          if (!obj) {
+            obj = scoreboard.addObjective(idObj, nameDisplayObj);
+          }
+          scoreboard.setObjectiveAtDisplaySlot(displaySlot, { objective: obj, sortOrder: order });
+        } catch (e) {
+          CatLogHandler.handleError(e, "setObjInDisplay", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que limpia los objectives asignados a una parte de la pantallas de forma simplificada.
+       * @param {mc.DisplaySlotId} displaySlot El slot a limpiar en cuestión.
+       * @author HaJuegos - 31-03-2026
+       * @public
+       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
+       * @example
+       * ```ts
+       * // Se quita al objective que se mostraba en sidebar.
+       * worldToolsSimplified.removeDisplaySlot(mc.DisplaySlotId.Sidebar);
+       * ```
+       */
+      removeDisplaySlot(displaySlot) {
+        const registrationTrace = new Error().stack;
+        try {
+          const scoreboard = mc3.world.scoreboard;
+          scoreboard.clearObjectiveAtDisplaySlot(displaySlot);
+        } catch (e) {
+          CatLogHandler.handleError(e, "removeDisplayObj", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que convierte segundos a ticks de forma simple.
+       * @public
+       * @param {number} seconds Los segundos a convertir.
+       * @returns {number} Los ticks convertidos.
+       * @author HaJuegos - 12-03-2026
+       * @example
+       * ```ts
+       * // 15 segundos son 300 ticks (20 ticks por segundo)
+       * const ticks = worldToolsSimplified.convertSecondsToTicks(15); // 300
+       * ```
+       */
+      convertSecondsToTicks(seconds) {
+        return mc3.TicksPerSecond * seconds;
+      }
+      /**
+       * Método auxiliar que convierte ticks a segundos de forma simple.
+       * @public
+       * @param {number} ticks Los ticks a convertir.
+       * @returns {number} Los segundos convertidos.
+       * @author HaJuegos - 12-03-2026
+       * @example
+       * ```ts
+       * // 300 ticks son 15 segundos (20 ticks por segundo)
+       * const seconds = worldToolsSimplified.convertTicksToSeconds(300); // 15
+       * ```
+       */
+      convertTicksToSeconds(ticks) {
+        return ticks / mc3.TicksPerSecond;
+      }
+      /**
+       * Método auxiliar que convierte un color hexadecimal a RGB.
+       * @param {string} hexcolor El color hexadecimal (ej. "#00000F").
+       * @returns {mc.RGB} El objeto RGB correspondiente.
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @example
+       * ```ts
+       * const rgb = worldToolsSimplified.convertHexToRGB("#FF0000"); // { red: 255, green: 0, blue: 0 }
+       * ```
+       */
+      convertHexToRGB(hexcolor) {
+        const hex = hexcolor.replace("#", "");
+        if (hex.length != 6) {
+          throw new Error("El color hexadecimal no debe ser mas de 6 digitos");
+        }
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        return { red: r, green: g, blue: b };
+      }
+      /**
+       * Método auxiliar que convierte un color hexadecimal a RGBA.
+       * @param {string} hexcolor El color hexadecimal (ej. "#00000FFF" para 8 dígitos, o "#00000F" asumiendo a=255).
+       * @returns {mc.RGBA} El objeto RGBA correspondiente.
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @example
+       * ```ts
+       * const rgba = worldToolsSimplified.convertHexToRGBA("#FF0000FF"); // { red: 255, green: 0, blue: 0, alpha: 255 }
+       * const rgba2 = worldToolsSimplified.convertHexToRGBA("#FF0000"); // { red: 255, green: 0, blue: 0, alpha: 255 }
+       * ```
+       */
+      convertHexToRGBA(hexcolor) {
+        const hex = hexcolor.replace("#", "");
+        let r, g, b, a;
+        if (hex.length == 6) {
+          r = parseInt(hex.substr(0, 2), 16);
+          g = parseInt(hex.substr(2, 2), 16);
+          b = parseInt(hex.substr(4, 2), 16);
+          a = 255;
+        } else if (hex.length == 8) {
+          r = parseInt(hex.substr(0, 2), 16);
+          g = parseInt(hex.substr(2, 2), 16);
+          b = parseInt(hex.substr(4, 2), 16);
+          a = parseInt(hex.substr(6, 2), 16);
+        } else {
+          throw new Error("El color hexadecimal alpha debe ser 6 o 8 digitos");
+        }
+        return { red: r, green: g, blue: b, alpha: a };
+      }
+      /**
+       * Método auxiliar que obtiene los datos de una propiedad dinámica en concreto guardado en el mundo.
+       * @param {string} idProperty ID de la propiedad en concreto.
+       * @returns {(string | number | boolean | mc.Vector3 | undefined)} Los datos guardados en la propiedad, en caso de no estar creada, será undefined.
+       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * worldToolsSimplified.getWorldDynamicProperty('ha:property'); // "string" | undefined.
+       * ```
+       */
+      getWorldDynamicProperty(idProperty) {
+        return mc3.world.getDynamicProperty(idProperty);
+      }
+      /**
+       * Método auxiliar que obtiene todos los IDs de propiedades dinámicas guardadas en el mundo.
+       * @returns {string[]} El array de todos los IDs registrados, en caso de no haber ninguno, estará vacío.
+       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * worldToolsSimplified.getAllWorldDynamicPropertiesIDs(); // ['ha:test','ha:test2','ha:test3'].
+       * ```
+       */
+      getAllWorldDynamicPropertiesIDs() {
+        return mc3.world.getDynamicPropertyIds();
+      }
+      /**
+       * Método auxiliar que obtiene los datos de una propiedad dinámica guardada en una entidad en concreto.
+       * @param {(mc.Entity | mc.Player)} targetEntity Entidad en cuestión a consultar.
+       * @param {string} idProperty ID en cuestión de la propiedad a consultar.
+       * @returns {(string | number | boolean | mc.Vector3 | undefined)} Devuelve el tipo de dato guardado en la propiedad, en caso de no existir, será undefined.
+       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * worldToolsSimplified.getEntityDynamicProperty(entity, 'ha:test'); // "string" | undefined.
+       * ```
+       */
+      getEntityDynamicProperty(targetEntity, idProperty) {
+        return targetEntity.getDynamicProperty(idProperty);
+      }
+      /**
+       * Método auxiliar que obtiene todos los IDs de propiedades dinámicas en una entidad en concreto.
+       * @param {(mc.Entity | mc.Player)} targetEntity Entidad en concreto a consultar.
+       * @returns {string[]} Devuelve un Array con todos los IDs, en caso de no haber ninguno, será vacío.
+       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * worldToolsSimplified.getEntityDynamicPropertiesIDs(entity); // ['ha:test1','ha:test2','ha:test3']
+       * ```
+       */
+      getEntityDynamicPropertiesIDs(targetEntity) {
+        return targetEntity.getDynamicPropertyIds();
+      }
+      /**
+       * Método auxiliar que activa globalmente música para todos los jugadores.
+       * @param {string} idMusic ID de la música a reproducir.
+       * @param {?mc.MusicOptions} [options] (Opcional) Las condiciones para hacer sonar la música.
+       * @returns {void}
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * worldToolsSimplified.startGlobalMusic('music.pigstep');
+       * ```
+       */
+      startGlobalMusic(idMusic, options) {
+        const registrationTrace = new Error().stack;
+        try {
+          mc3.world.playMusic(idMusic, options);
+        } catch (e) {
+          CatLogHandler.handleError(e, "startGlobalMusic", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que detiene la música global del mundo.
+       * @returns {void}
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * worldToolsSimplified.stopGlobalMusic();
+       * ```
+       */
+      stopGlobalMusic() {
+        const registrationTrace = new Error().stack;
+        try {
+          mc3.world.stopMusic();
+        } catch (e) {
+          CatLogHandler.handleError(e, "stopGlobalMusic", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que obtiene o crea un area persistente en el mundo. Un /tickingarea, basado en las configuraciones de la misma, este es asíncrono debido a que debe esperar la carga de chunks requeridas y los cálculos que hace el juego para crear el radio.
+       * @param {string} idArea ID del area a crear o obtener.
+       * @param {mc.TickingAreaOptions} options Parametros para la creación del area en caso de no existir.
+       * @returns {Promise<mc.TickingArea | undefined>} Si todo sale bien, devuelve el area correctamente en caso de modificarlo, sino, será undefined.
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @async
+       * @example
+       * ```ts
+       * // Esto crea una area persistente en el mundo y si todo sale bien, devuelve el tipo para modificarlo. En caso de ya existir, pues no se crea.
+       * worldToolsSimplified.getOrCreateTickingArea('ha:area_persistente', {
+       *     dimension: Dimension,
+       *     to: { x: 0, y: 0, z: 0 },
+       *     from: { x: 0, y: 10, z: -10 }
+       * });
+       * ```
+       */
+      async getOrCreateTickingArea(idArea, options) {
+        const registrationTrace = new Error().stack;
+        try {
+          let area = mc3.world.tickingAreaManager.getTickingArea(idArea);
+          if (!area) {
+            await mc3.world.tickingAreaManager.createTickingArea(idArea, options);
+            area = mc3.world.tickingAreaManager.getTickingArea(idArea);
+          }
+          return area;
+        } catch (e) {
+          CatLogHandler.handleError(e, "getOrCreateTickingArea", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Método auxiliar que elimina un area persistente del mundo creado previamente.
+       * @param {(string | mc.TickingArea)} idArea Area en concreto a eliminar o tambien su ID.
+       * @returns {void}
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * // Esto elimina dicha area, si existe, sino, pues no hace nada.
+       * worldToolsSimplified.deletedTickingArea('ha:area_persistente');
+       * ```
+       */
+      deletedTickingArea(idArea) {
+        const registrationTrace = new Error().stack;
+        try {
+          mc3.world.tickingAreaManager.removeTickingArea(idArea);
+        } catch (e) {
+          CatLogHandler.handleError(e, "deletedTickingArea", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que permite la creación de textos flotantes custom en el mundo, con mucha personalización.
+       * @param {CustomFloatingTextParams} params Todos los parámetros requeridos para la creación de un texto flotante.
+       * @returns {mc.TextPrimitive} Si todo sale bien, devuelve el mismo texto flotante previamente creado para su modificación.
+       * @author HaJuegos - 18-07-2026
+       * @public
+       * @example
+       * ```ts
+       * // Esto crea un texto flotante llamado "Hola soy un texto".
+       * const floatText: CustomFloatingTextParams = {
+       *     text: { rawtext: [{ text: 'Hola soy un texto' }] },
+       *     dimension: Dimension,
+       *     alwaysVisible: true,  // Siempre será visible para todos a través de bloques.
+       *     location: { x: 0, y: 0, z: 0 },
+       *     rotation: { x: 0, y: 0, z: 0 },
+       *     duration: 1000,
+       *     scale: 1
+       * };
+       *
+       * worldToolsSimplified.setAndGetFloatingText(floatText);
+       * ```
+       */
+      setAndGetFloatingText(params) {
+        const registrationTrace = new Error().stack;
+        try {
+          const floatTxt = new mc3.TextPrimitive(params.location, params.text);
+          floatTxt.depthTest = !params.alwaysVisible;
+          if (params.attachedTo) {
+            floatTxt.attachedTo = params.attachedTo;
+          }
+          if (params.scale != void 0) {
+            floatTxt.scale = params.scale;
+          }
+          if (params.duration != void 0) {
+            floatTxt.timeLeft = params.duration;
+          }
+          if (params.rotation) {
+            floatTxt.rotation = params.rotation;
+            floatTxt.useRotation = true;
+          }
+          if (params.toPlys) {
+            floatTxt.visibleTo = Array.isArray(params.toPlys) ? params.toPlys : [params.toPlys];
+          }
+          if (params.color) {
+            const finalColor = typeof params.color == "string" ? worldToolsSimplified.convertHexToRGBA("finalColor") : params.color;
+            floatTxt.color = finalColor;
+          }
+          if (params.backGroundColor) {
+            const finalColor = typeof params.backGroundColor == "string" ? worldToolsSimplified.convertHexToRGBA("finalColor") : params.backGroundColor;
+            floatTxt.backgroundColorOverride = finalColor;
+          }
+          mc3.world.primitiveShapesManager.addText(floatTxt, params.dimension);
+          return floatTxt;
+        } catch (e) {
+          CatLogHandler.handleError(e, "setAndGetFloatingText", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Método auxiliar que obtiene las dimensiones vanillas o custom por el método world.
+       * @param {(vanilla.MinecraftDimensionTypes | string)} dimensionID El ID vanilla o custom en cuestión a obtener de la dimensión.
+       * @returns {(mc.Dimension | undefined)} Si todo sale bien, devuelve la dimensión en concreto, sino, será undefined.
+       * @public
+       * @author HaJuegos - 06-08-2026
+       * @example
+       * ```ts
+       * // Todas las formas de obtener dimensiones.
+       * const over = worldToolsSimplified.getDimension(vanilla.MinecraftDimensionTypes.Overworld);
+       * const end = worldToolsSimplified.getDimension(vanilla.MinecraftDimensionTypes.TheEnd);
+       * const customDime = worldToolsSimplified.getDimension('ha:custom_dimension');
+       * ```
+       */
+      getDimension(dimensionID) {
+        const registrationTrace = new Error().stack;
+        try {
+          return mc3.world.getDimension(dimensionID);
+        } catch (e) {
+          CatLogHandler.handleError(e, "getDimension", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Método auxiliar que obtiene todos los jugadores en el mundo independientemente de las dimensiones.
+       * @returns {(mc.Player[] | undefined)} Si todo sale bien, devuelve de array de todos los jugadores, sino, será undefined.
+       * @public
+       * @author HaJuegos - 06-08-2026
+       * @example
+       * ```ts
+       * // Obtiene todos los jugadores del mundo.
+       * worldToolsSimplified.getAllPlysGlobal();
+       * ```
+       */
+      getAllPlysGlobal() {
+        const registrationTrace = new Error().stack;
+        try {
+          return mc3.world.getAllPlayers();
+        } catch (e) {
+          CatLogHandler.handleError(e, "getAllPlys", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Método auxiliar que envía un evento script globalmente por medio de, scripts vaya.
+       * @param {string} idScript ID del script en concreto a enviar.
+       * @param {?string} [msg] (Opcional) Mensaje del script en concreto a enviar como argumento adicional.
+       * @returns {void}
+       * @public
+       * @author HaJuegos - 06-08-2026
+       * @example
+       * ```ts
+       * // Envía un script de prueba al addon de forma global.
+       * worldToolsSimplified.sendScriptEventGlobal('ha:test_script');
+       * ```
+       */
+      sendScriptEventGlobal(idScript, msg) {
+        const registrationTrace = new Error().stack;
+        try {
+          mc3.system.sendScriptEvent(idScript, msg ? msg : "");
+        } catch (e) {
+          CatLogHandler.handleError(e, "sendScriptEventGlobal", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Metodo auxiliar que cambia el estado de las trampas en el mundo. Pasando de false o true dependiendo el argumento asignado.
+       * @param {boolean} state El nuevo estado que cambiara la opcion.
+       * @returns {void}
+       * @author HaJuegos - 30-08-2026
+       * @public
+       * @example
+       * ```ts
+       * // Ahora en el mundo si estara permitido las trampas de forzada.
+       * worldToolsSimplified.changeWorldCheats(true);
+       * ```
+       */
+      changeWorldCheats(state) {
+        const registrationTrace = new Error().stack;
+        try {
+          mc3.world.allowCheats = state;
+        } catch (e) {
+          CatLogHandler.handleError(e, "changeWorldCheats", registrationTrace);
+          return;
+        }
+      }
+      /**
+       * Metodo auxiliar que cambia el estado de la dificultad en el mundo, dependiendo el argumento asignado.
+       * @param {boolean} state El nuevo estado que cambiara la opcion.
+       * @returns {void}
+       * @author HaJuegos - 30-08-2026
+       * @public
+       * @example
+       * ```ts
+       * // Ahora en el mundo estara en dificil de forma forzada.
+       * worldToolsSimplified.changeWorldDifficulty(mc.Difficulty.Hard);
+       * ```
+       */
+      changeWorldDifficulty(state) {
+        const registrationTrace = new Error().stack;
+        try {
+          mc3.world.setDifficulty(state);
+        } catch (e) {
+          CatLogHandler.handleError(e, "changeWorldDifficulty", registrationTrace);
+          return;
+        }
+      }
+    };
+    worldToolsSimplified = new WorldToolsSimplified();
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/debugToolsSimplified.js
+import * as mc4 from "@minecraft/server";
+import * as debug from "@minecraft/debug-utilities";
+var DebugToolsSimplified, debugToolsSimplified;
+var init_debugToolsSimplified = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/debugToolsSimplified.js"() {
+    init_worldToolsSimplifiedManager();
+    DebugToolsSimplified = class {
+      /**
+       * Eventos iniciales de la clase cuando es llamada o inicializada.
+       * @constructor
+       */
+      constructor() {
+        this.playerHitboxLoops = /* @__PURE__ */ new Map();
+        this.playerActiveBoxes = /* @__PURE__ */ new Map();
+      }
+      /**
+       * Método auxiliar que activa las hitboxes de todas las entidades cercanas en un radio de 50 bloques a un jugador en concreto.
+       * @param {mc.Player} ply Jugador en concreto a considerar.
+       * @param {number} [maxRadiusHitboxs=50] (Opcional) El radio máximo a considerar para visualizar las hitboxes. Por defecto será 50.
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @example
+       * ```ts
+       * const plys = world.getAllPlayers();
+       *
+       * debugToolsSimplified.showHitboxes(plys[0]); // Solo este jugador podrá ver las hitboxes.
+       * ```
+       */
+      showHitboxes(ply, maxRadiusHitboxs = 50) {
+        const plyId = ply.id;
+        if (this.playerHitboxLoops.has(plyId)) {
+          this.stopHitboxes(ply);
+        }
+        const activeBoxes = /* @__PURE__ */ new Map();
+        this.playerActiveBoxes.set(plyId, activeBoxes);
+        const loopId = worldToolsSimplified.setLoop(() => {
+          if (!ply.isValid) {
+            this.stopHitboxes(ply);
+            return;
+          }
+          const nearbyMobs = ply.dimension.getEntities({
+            location: ply.location,
+            maxDistance: maxRadiusHitboxs
+          }).slice(0, 30);
+          for (const mob of nearbyMobs) {
+            if (!activeBoxes.has(mob) && mob.isValid) {
+              const bb = mob.getAABB();
+              const box = new debug.DebugBox({ x: 0, y: 0, z: 0 });
+              box.bound = { x: bb.extent.x * 2, y: bb.extent.y * 2, z: bb.extent.z * 2 };
+              box.scale = 1;
+              box.color = { red: 255, green: 255, blue: 255, alpha: 1 };
+              box.visibleTo = [ply];
+              box.attachedTo = mob;
+              box.setLocation({ x: 0, y: bb.extent.y, z: 0 });
+              debug.debugDrawer.addShape(box, ply.dimension);
+              activeBoxes.set(mob, box);
+            }
+          }
+          for (const [mob, box] of activeBoxes) {
+            if (!mob.isValid) {
+              box.remove();
+              activeBoxes.delete(mob);
+              continue;
+            }
+            const dx = mob.location.x - ply.location.x;
+            const dy = mob.location.y - ply.location.y;
+            const dz = mob.location.z - ply.location.z;
+            if (Math.sqrt(dx * dx + dy * dy + dz * dz) > maxRadiusHitboxs) {
+              box.remove();
+              activeBoxes.delete(mob);
+              continue;
+            }
+            const bb = mob.getAABB();
+            box.bound = { x: bb.extent.x * 2, y: bb.extent.y * 2, z: bb.extent.z * 2 };
+            box.setLocation({ x: 0, y: bb.extent.y, z: 0 });
+          }
+        }, worldToolsSimplified.convertSecondsToTicks(1));
+        this.playerHitboxLoops.set(plyId, loopId);
+      }
+      /**
+       * Método auxiliar que desactiva las hitboxes creadas en el mundo para todos los jugadores.
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @example
+       * ```ts
+       * debugToolsSimplified.stopHitBoxes(); // Quita TODAS las hitboxes del mundo.
+       * debugToolsSimplified.stopHitBoxes(ply); // Quita todas las hitboxes de ese jugador en concreto.
+       * ```
+       */
+      stopHitboxes(ply) {
+        if (ply) {
+          const plyId = ply.id;
+          const loopId = this.playerHitboxLoops.get(plyId);
+          if (loopId != void 0) {
+            worldToolsSimplified.stopLoop(loopId);
+            this.playerHitboxLoops.delete(plyId);
+          }
+          const activeBoxes = this.playerActiveBoxes.get(plyId);
+          if (activeBoxes) {
+            for (const box of activeBoxes.values()) {
+              box.remove();
+            }
+            this.playerActiveBoxes.delete(plyId);
+          }
+        } else {
+          for (const loopId of this.playerHitboxLoops.values()) {
+            worldToolsSimplified.stopLoop(loopId);
+          }
+          this.playerHitboxLoops.clear();
+          for (const activeBoxes of this.playerActiveBoxes.values()) {
+            for (const box of activeBoxes.values()) {
+              box.remove();
+            }
+          }
+          this.playerActiveBoxes.clear();
+          debug.debugDrawer.removeAll();
+        }
+      }
+      /**
+       * Método que altera el estado de activo o desactivado del watchDogTerminate, en caso de lag spikes con scripts, para permitir el cierre o no del mundo o servidor cuando pase. Esto es solo recomendable usarlo en testeos, no se recomienda desactivarlo en mundos/servidores casuales o normales.
+       * @param {boolean} newState El estado próximo a cambiar.
+       * @author HaJuegos - 14-03-2026
+       * @public
+       * @example
+       * ```ts
+       * debugToolsSimplified.watchDogState(false) // ya no habrá cierre por lag spikes o problemas con scripts
+       * ```
+       */
+      watchDogState(newState) {
+        mc4.system.beforeEvents.watchdogTerminate.subscribe((arg) => {
+          arg.cancel = newState;
+        });
+      }
+    };
+    debugToolsSimplified = new DebugToolsSimplified();
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/fakePlysManagerSimplififed.js
+import * as gametest from "@minecraft/server-gametest";
+var FakePlysManager, fakePlysSimplified;
+var init_fakePlysManagerSimplififed = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/fakePlysManagerSimplififed.js"() {
+    init_errorHandler();
+    init_worldToolsSimplifiedManager();
+    FakePlysManager = class {
+      /**
+       * Eventos iniciales de la clase cuando es inicializada o llamada.
+       * @constructor
+       */
+      constructor() {
+        this.testCxt = void 0;
+        this.isPlaced = false;
+      }
+      /**
+       * Método auxiliar que registra primero el contexto necesario de los gametest para poder generar los simulated players.
+       * @returns {void}
+       * @author HaJuegos - 21-07-2026
+       * @private
+       */
+      registerMainGametest() {
+        const registrationTrace = new Error().stack;
+        gametest.register("ha", "fakeplys", (args) => {
+          try {
+            this.testCxt = args;
+          } catch (e) {
+            CatLogHandler.handleError(e, "createFakePly", registrationTrace);
+          }
+        }).maxTicks(worldToolsSimplified.convertSecondsToTicks(99999)).structureName("ha:void");
+      }
+      /**
+       * Método auxiliar que crea un nuevo tipo de jugador falso para métodos de pruebas.
+       * @param {mc.Dimension} dimension Dimensión donde se generará el jugador de pruebas.
+       * @param {string} namePly Nombre a asignar al jugador de pruebas.
+       * @param {mc.GameMode} gamemodePly El modo de juego que tendrá el jugador de pruebas.
+       * @param {?mc.Vector3} [defaultSpawnLocation] (Opcional) Coordenadas donde aparecerá el jugador de pruebas. Por defecto, irá a un jugador aleatorio
+       * @returns {Promise<gametest.SimulatedPlayer | undefined>} Los datos del jugador falso generado en caso de que todo salga bien, sino será undefined.
+       * @author HaJuegos - 13-03-2026
+       * @public
+       * @async Método asíncrono, por lo que este método necesita una ejecución principal y esperar esta misma para devolver el resultado final.
+       * @gametestEvent Es un método gametest, usando estructuras de pruebas por medio del comando /gametest run.
+       * @example
+       * ```ts
+       * // Esto genera un jugador de pruebas con sus respectivos datos para usar.
+       * const fakePly = await fakePlysSimplified.createFakePly('Jugador Prueba', Dimension, mc.GameMode.Survival);
+       * ```
+       */
+      async createFakePly(namePly, dimension, gamemodePly, defaultSpawnLocation) {
+        const registrationTrace = new Error().stack;
+        try {
+          this.registerMainGametest();
+          if (!this.isPlaced) {
+            dimension.runCommand(`gametest run ha:fakeplys`);
+            this.isPlaced = true;
+          }
+          return await new Promise((resolve, reject) => {
+            worldToolsSimplified.setDelay(() => {
+              try {
+                if (!this.testCxt) {
+                  throw new Error("No se pudo generar el jugador falso. No se cre\xF3 previamente el ambiente necesario para poderlo generar. Vuelve a intentarlo nuevamente. \xBFTienes guardado en tus estructuras el archivo 'void'?");
+                }
+                const fakePly = this.testCxt.spawnSimulatedPlayer({ x: 0, y: 1, z: 0 }, namePly, gamemodePly);
+                if (defaultSpawnLocation) {
+                  fakePly.tryTeleport(defaultSpawnLocation);
+                } else {
+                  fakePly.runCommand(`tp @r[name=!"${namePly}"]`);
+                }
+                resolve(fakePly);
+              } catch (e) {
+                reject(e);
+              }
+            }, worldToolsSimplified.convertSecondsToTicks(1));
+          });
+        } catch (e) {
+          CatLogHandler.handleError(e, "createFakePly", registrationTrace);
+          return;
+        }
+      }
+    };
+    fakePlysSimplified = new FakePlysManager();
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/customToolsManager.js
+import * as mc5 from "@minecraft/server";
+import * as ui from "@minecraft/server-ui";
+var CustomEventsSimplified, customEventsManager;
+var init_customToolsManager = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/events/customToolsManager.js"() {
+    init_errorHandler();
+    init_beforeEventsSimplifiedManager();
+    init_worldToolsSimplifiedManager();
+    CustomEventsSimplified = class {
+      /**
+       * Eventos principales de la clase cuando es llamada o inicializada.
+       * @constructor
+       */
+      constructor() {
+        this.activePlys = /* @__PURE__ */ new Map();
+      }
+      /**
+       * Método auxiliar que simplifica la lógica de la creación de un formulario UI custom en cuestión.
+       * @param {CustomFormParams} formParams Los parámetros del formulario en concreto necesarios para crear el formulario.
+       * @returns {Promise<ui.ActionFormData | void>} Se devuelve el mismo formulario creado en caso de que todo esté bien.
+       * @author HaJuegos - 16-04-2026
+       * @async Este método es asíncrono debido a las acciones que puede realizar el usuario cuando se muestre o no el formulario. Principalmente para los eventos.
+       * @public
+       * @example
+       * ```ts
+       * // Esto crea el formulario y luego lo muestra al jugador. Y al momento de abrir el formulario en el jugador, se manda un log.
+       * const form = this.createCustomClassicFormUI(
+       *      {
+       *          titleForm: 'Formulario de Prueba',
+       *          showPly: {
+       *              targetPly: player,
+       *              onShow: (ply) => {
+       *                  console.log(`${ply.name} abrió el formulario.`);
+       *              }
+       *          }
+       *      }
+       *  );
+       * ```
+       */
+      async createCustomClassicFormUI(formParams) {
+        const registrationTrace = new Error().stack;
+        try {
+          const baseForm = new ui.ActionFormData().title(formParams.titleForm);
+          const buttonList = formParams.buttonsForm ? Array.isArray(formParams.buttonsForm) ? formParams.buttonsForm : [formParams.buttonsForm] : [];
+          if (formParams.headerText) {
+            baseForm.header(formParams.headerText);
+          }
+          if (formParams.bodyText) {
+            baseForm.body(formParams.bodyText);
+          }
+          if (formParams.labelText) {
+            baseForm.label(formParams.labelText);
+          }
+          buttonList.forEach((button) => {
+            baseForm.button(button.buttomText, button.iconButtomUI);
+          });
+          if (formParams.showPly) {
+            const targetInfo = formParams.showPly;
+            const ply = targetInfo.targetPly;
+            if (targetInfo.onCreate) {
+              targetInfo.onCreate(ply);
+            }
+            try {
+              const action = await baseForm.show(ply);
+              if (action.canceled) {
+                if (targetInfo.onClose) {
+                  targetInfo.onClose(ply, action.cancelationReason);
+                }
+              } else {
+                if (targetInfo.onClickBtn && action.selection != void 0) {
+                  targetInfo.onClickBtn(ply, action.selection);
+                }
+              }
+            } catch (e) {
+              if (targetInfo.onErrForm) {
+                targetInfo.onErrForm(ply, ui.FormCancelationReason.UserBusy);
+              }
+            }
+          }
+          return baseForm;
+        } catch (e) {
+          CatLogHandler.handleError(e, "createCustomClassicFormUI", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que simplifica la lógica de los fast items, cuando usas tu item con tu tecla de interacción, este cambiará a tu mano secundaria.
+       * @param {(mc.ItemStack[] | string[])} listOfItems La lista de items a validar para este sistema.
+       * @returns {void}
+       * @author HaJuegos - 15-03-2026
+       * @version 2 Cambio de obtención de items permitidos para hacerlo dinámico si es requerido.
+       * @public
+       * @example
+       * ```ts
+       * customEventsManager.fastItemsSystem(() => ['totem']); // Ahora el totem es considerado un fast item para cambiar a la mano secundaria con un click.
+       * ```
+       */
+      fastItemsSystem(listOfItems) {
+        beforeEventsSimplified.onUseItem((args) => {
+          const ply = args.source;
+          const item = args.itemStack;
+          const currentSlot = ply.selectedSlotIndex;
+          const currentList = listOfItems();
+          const isItemValid = currentList.some((listItem) => {
+            if (typeof listItem == "string") {
+              return item.typeId.includes(listItem);
+            } else {
+              return item.typeId == listItem.typeId;
+            }
+          });
+          if (isItemValid) {
+            args.cancel = true;
+            worldToolsSimplified.setRun(() => {
+              const plyInv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
+              const plyArmor = ply.getComponent(mc5.EntityComponentTypes.Equippable);
+              const itemCurrentlyInSlot = plyInv.getItem(currentSlot);
+              if (!itemCurrentlyInSlot || itemCurrentlyInSlot.typeId != item.typeId) {
+                return;
+              }
+              const itemOffhand = plyArmor.getEquipment(mc5.EquipmentSlot.Offhand);
+              if (itemOffhand && itemOffhand.typeId == itemCurrentlyInSlot.typeId) {
+                return;
+              }
+              if (itemOffhand) {
+                plyArmor.setEquipment(mc5.EquipmentSlot.Offhand, itemCurrentlyInSlot);
+                plyInv.setItem(currentSlot, itemOffhand);
+              } else {
+                plyArmor.setEquipment(mc5.EquipmentSlot.Offhand, itemCurrentlyInSlot);
+                plyInv.setItem(currentSlot, void 0);
+              }
+              ply.playSound("armor.equip_generic");
+            });
+          }
+        });
+      }
+      /**
+       * Método auxiliar que simplifica la lógica de dañar un item o reducir un stack de items en un inventario de un jugador en concreto, dependiendo el caso.
+       * @param {ManualDamageItemParams} params Los parámetros necesarios para este método.
+       * @author HaJuegos - 17-03-2026
+       * @public
+       * @example
+       * ```ts
+       * // Esto hará que un item en la mano reduzca su stock o sea dañado bajando su durabilidad. Dependiendo el tipo de item.
+       * customEventsManager.manualDamageItem({ ply: player, item: item });
+       * ```
+       */
+      manualDamageItem(params) {
+        const registrationTrace = new Error().stack;
+        try {
+          const { ply, item, specificInv = "inv", specificAmount = 1, specificDamageDurability = 1, specificSlot = ply.selectedSlotIndex } = params;
+          const actualGm = ply.getGameMode();
+          if (actualGm != mc5.GameMode.Adventure && actualGm != mc5.GameMode.Survival)
+            return;
+          const newItem = item.clone();
+          let broke = false;
+          if (!item.isStackable) {
+            const durability = newItem.getComponent(mc5.ItemComponentTypes.Durability);
+            if (durability) {
+              const finalDurability = durability.damage + specificDamageDurability;
+              if (finalDurability >= durability.maxDurability) {
+                broke = true;
+                ply.playSound("random.break");
+              } else {
+                durability.damage = finalDurability;
+              }
+            }
+          } else {
+            if (newItem.amount <= specificAmount) {
+              broke = true;
+            } else {
+              newItem.amount -= specificAmount;
+            }
+          }
+          if (specificInv == "armor") {
+            const armorInv = ply.getComponent(mc5.EntityComponentTypes.Equippable);
+            armorInv.setEquipment(specificSlot, broke ? void 0 : newItem);
+          } else {
+            const plyInv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
+            plyInv.setItem(specificSlot, broke ? void 0 : newItem);
+          }
+        } catch (e) {
+          CatLogHandler.handleError(e, "manualDamageItem", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que simplifica la lógica de detectar en el inventario del jugador, si tiene uno o varios items en concreto de forma explícita o no.
+       * @param {mc.Player} plySource Jugador en cuestión.
+       * @param {(string | string[] | vanilla.MinecraftItemTypes | vanilla.MinecraftItemTypes[] )} itemsToDetect Item o items a buscar.
+       * @param {boolean?} exactItems (Opcional) Busca explícitamente el nombre del item palabra por palabra. Por defecto está apagado, entonces buscará items sin importar si tienen diferencias. Por ej: Si se busca 'diamond'; minecraft:diamond y minecraft:diamond_sword serían true.
+       * @returns {boolean} Devuelve true en caso de tener ese item, sino, será false.
+       * @author HaJuegos - 18-03-2026
+       * @public
+       * @example
+       * ```ts
+       * // Esto es true si el jugador tiene un item llamado totem o más de forma no explícita.
+       * customEventsManager.plyHasItems(player, 'totem');
+       *
+       * // Esto es true si el jugador tiene un totem de la inmortalidad de forma explícita.
+       * customEventsManager.plyHasItems(player, vanilla.MinecraftItemTypes.TotemOfUndying, true);
+       * ```
+       */
+      plyHasItems(plySource, itemsToDetect, exactItems = false) {
+        const registrationTrace = new Error().stack;
+        try {
+          const invPly = plySource.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
+          const armorPly = plySource.getComponent(mc5.EntityComponentTypes.Equippable);
+          const targetItems = Array.isArray(itemsToDetect) ? itemsToDetect : [itemsToDetect];
+          if (invPly) {
+            for (let i = 0; i < invPly.size; i++) {
+              const item = invPly.getItem(i);
+              if (item) {
+                const itemFound = !exactItems ? targetItems.some((target) => item.typeId.includes(target)) : targetItems.some((target) => item.typeId == target);
+                if (itemFound) {
+                  return true;
+                }
+              }
+            }
+          }
+          if (armorPly) {
+            const equipmentSlots = [
+              mc5.EquipmentSlot.Head,
+              mc5.EquipmentSlot.Chest,
+              mc5.EquipmentSlot.Legs,
+              mc5.EquipmentSlot.Feet,
+              mc5.EquipmentSlot.Offhand
+            ];
+            for (const slot of equipmentSlots) {
+              const item = armorPly.getEquipment(slot);
+              if (item) {
+                const itemFound = !exactItems ? targetItems.some((target) => item.typeId.includes(target)) : targetItems.some((target) => item.typeId == target);
+                if (itemFound) {
+                  return true;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          CatLogHandler.handleError(e, "plyHasItems", registrationTrace);
+        }
+        return false;
+      }
+      /**
+       * Método auxiliar que simplifica la lógica al detectar el uso de un totem, ejecutando los eventos relacionados.
+       * @param {(entity: mc.Entity | mc.Player) => void} callback Los eventos relacionados a ejecutar.
+       * @returns {void}
+       * @version 2 Ahora es un beforeEvent por uso de BeforeOnEntityHeal.
+       * @author HaJuegos - 19-08-2026
+       * @public
+       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
+       * @example
+       * ```ts
+       * // Este evento solo se va a ejecutar cuando una entidad o jugador usa un totem.
+       * customEventsManager.onEntityUseTotem((entity) => {
+       *     console.warn(`${entity.typeId} ha usado un totem.`);
+       *     console.warn(`${entity.name} ha usado un totem.`);
+       * });
+       * ```
+       */
+      onEntityUseTotem(callback) {
+        beforeEventsSimplified.onEntityHeal((args) => {
+          const entity = args.healedEntity;
+          const cause = args.healSource;
+          if (cause.cause != mc5.EntityHealCause.TotemOfUndying)
+            return;
+          callback(entity);
+        });
+      }
+      /**
+       * Método auxiliar que simplifica la lógica de randomizar el inventario de un jugador, cambiando totalmente las ubicaciones de los items en el mismo inventario.
+       * @param {mc.Player} ply Jugador en cuestión.
+       * @author HaJuegos - 30-03-2026
+       * @public
+       * @example
+       * ```ts
+       * // Ahora el inventario estará totalmente desordenado. Solo el inventario, no armadura.
+       * customEventsManager.randomizeInvPly(player);
+       * ```
+       */
+      randomizeInvPly(ply) {
+        const registrationTrace = new Error().stack;
+        try {
+          const inv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
+          const validItems = [];
+          for (let i = 0; i < inv.size; i++) {
+            const item = inv.getItem(i);
+            if (item) {
+              validItems.push(item);
+              inv.setItem(i, void 0);
+            }
+          }
+          if (validItems.length == 0)
+            return;
+          const randomSlots = Array.from({ length: inv.size }, (_, i) => i);
+          for (let i = randomSlots.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [randomSlots[i], randomSlots[j]] = [randomSlots[j], randomSlots[i]];
+          }
+          for (let i = 0; i < validItems.length; i++) {
+            const targetSlot = randomSlots[i];
+            inv.setItem(targetSlot, validItems[i]);
+          }
+        } catch (e) {
+          CatLogHandler.handleError(e, "randomizeInvPly", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que genera un timer basado en tiempo real. Este consiste en minutos iniciales (también horas) iniciando el timer guardando los valores en tiempo real en el jugador asignado que va a ver el timer. Devolviendo y ejecutando código basado en el timer.
+       * @param {CustomTimerParam} paramsTimer Los parámetros y eventos a ejecutar mientras el timer se ejecuta.
+       * @author HaJuegos - 05-04-2026
+       * @public
+       * @example
+       * ```ts
+       * const paramsTimer: CustomTimerParam = {
+       *     sourcePLy: player, // Jugador que tiene el timer
+       *     timerID: 'ha:timer_unique', // Identificador único del timer, por si se usa en más de una ocasión
+       *     initialMns: 2, // Los Minutos iniciales del timer o minutos a mostrar del timer.
+       *     forceRestart: true, // (Opcional) Si es necesario en caso de cambio del valor, por ej, nuevos valores de minutos o segundos, pues hace que el timer se reinicie.
+       *
+       *     // (Opcional) Eventos relacionales cuando el timer pasa un segundo.
+       *     onSecondPass: (ply, timer) => {
+       *         console.log(`Ha pasado un segundo, el tiempo ahora está en ${timer}`);
+       *     },
+       * };
+       *
+       * // Inicia el timer para el jugador en concreto. NOTA: Es un timer interno, no tiene interfaz. Para mostrar el valor del timer, usar los eventos como: onSecondPass.
+       * customEventsManager.startTimerLocal(paramsTimer);
+       * ```
+       */
+      startTimerLocal(paramsTimer) {
+        const registrationTrace = new Error().stack;
+        try {
+          const { sourcePly, timerId, initialScnds, initialMns, initialHrs, forceRestart, onTimerStarts, onSecondPass, onMinutePass, onHourPass, onTimerEnds } = paramsTimer;
+          const mapKey = `${sourcePly.id}_${timerId}`;
+          const propKey = timerId;
+          let isnewTimer = false;
+          if (this.activePlys.has(mapKey)) {
+            if (forceRestart) {
+              const oldID = this.activePlys.get(mapKey);
+              worldToolsSimplified.stopLoop(oldID);
+              this.activePlys.delete(mapKey);
+              sourcePly.setDynamicProperty(timerId, void 0);
+              isnewTimer = true;
+            } else {
+              return;
+            }
+          }
+          const hrsMs = (initialHrs || 0) * 36e5;
+          const mnsMs = (initialMns || 0) * 6e4;
+          const scndsMs = (initialScnds || 0) * 1e3;
+          const totalRequestedMs = hrsMs + mnsMs + scndsMs;
+          let endTime = sourcePly.getDynamicProperty(propKey);
+          if (endTime == void 0) {
+            endTime = Date.now() + totalRequestedMs;
+            sourcePly.setDynamicProperty(propKey, endTime);
+            isnewTimer = true;
+          } else {
+            const remainSaved = Math.max(0, endTime - Date.now());
+            const savedTotalSeconds = Math.floor(remainSaved / 1e3);
+            const requestedTotalSeconds = Math.floor(totalRequestedMs / 1e3);
+            if (Math.abs(savedTotalSeconds - requestedTotalSeconds) >= 2) {
+              endTime = Date.now() + totalRequestedMs;
+              sourcePly.setDynamicProperty(propKey, endTime);
+            }
+          }
+          let lastSecond = -1;
+          let lastMinute = -1;
+          let lastHour = -1;
+          const formatTime = (remainMs) => {
+            if (remainMs < 0)
+              remainMs = 0;
+            const totalSeconds = Math.floor(remainMs / 1e3);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor(totalSeconds % 3600 / 60);
+            const seconds = totalSeconds % 60;
+            const mStr = minutes.toString().padStart(2, "0");
+            const sSrt = seconds.toString().padStart(2, "0");
+            let currentTime = `${mStr}:${sSrt}`;
+            if (initialHrs != void 0 && initialHrs > 0 || hours > 0) {
+              const hStr = hours.toString().padStart(2, "0");
+              currentTime = `${hStr}:${mStr}:${sSrt}`;
+            }
+            if (lastSecond != -1) {
+              if (seconds != lastSecond && onSecondPass) {
+                onSecondPass(sourcePly, currentTime);
+              }
+              if (minutes != lastMinute && onMinutePass) {
+                onMinutePass(sourcePly, currentTime);
+              }
+              if (hours != lastHour && onHourPass) {
+                onHourPass(sourcePly, currentTime);
+              }
+            }
+            lastSecond = seconds;
+            lastMinute = minutes;
+            lastHour = hours;
+            return currentTime;
+          };
+          const initialRemaining = endTime - Date.now();
+          const initialFormat = formatTime(initialRemaining);
+          if (isnewTimer && onTimerStarts) {
+            onTimerStarts(sourcePly);
+          }
+          if (onSecondPass) {
+            onSecondPass(sourcePly, initialFormat);
+          }
+          ;
+          const loopId = worldToolsSimplified.setLoop(() => {
+            if (!sourcePly.isValid) {
+              worldToolsSimplified.stopLoop(loopId);
+              this.activePlys.delete(mapKey);
+              return;
+            }
+            const currentRemaing = endTime - Date.now();
+            if (currentRemaing <= 0) {
+              sourcePly.setDynamicProperty(propKey, void 0);
+              this.activePlys.delete(mapKey);
+              worldToolsSimplified.stopLoop(loopId);
+              if (onTimerEnds) {
+                onTimerEnds(sourcePly);
+              }
+              ;
+            } else {
+              formatTime(currentRemaing);
+            }
+          }, worldToolsSimplified.convertSecondsToTicks(1));
+          this.activePlys.set(mapKey, loopId);
+        } catch (e) {
+          CatLogHandler.handleError(e, "customStartTimerLocal", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que fuerza la eliminación y dropeo de un item en concreto de un slot del inventario de un jugador.
+       * @param {mc.Player} ply Jugador en concreto a considerar.
+       * @param {(number | number[])} slots El o los slots en concreto a cambiar eliminar.
+       * @param {?mc.ItemStack} itemToRemplace (Opcional) Un item a poner en su lugar al item a dropear o eliminar.
+       * @param {?(string[] | vanilla.MinecraftItemTypes[] | mc.ItemStack[])} whitelistItems (Opcional) Lista de items que no se pueden dropear o eliminar en este sistema.
+       * @returns {void}
+       * @author HaJuegos - 18-05-2026
+       * @public
+       * @example
+       * ```ts
+       * // Cuando este evento se ejecute, los items de los slots "0,1,2,3" seran dropeados y eliminados del jugador. (Si hay items en esos slots)
+       * customEventsManager.dropItemsPly(ply, [0,1,2,3]);
+       * ```
+       */
+      dropItemsPly(ply, slots, itemToRemplace, whitelistItems) {
+        const registrationTrace = new Error().stack;
+        try {
+          const coords = ply.location;
+          const dime = ply.dimension;
+          const inv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
+          const finalSlots = Array.isArray(slots) ? slots : [slots];
+          for (const slot of finalSlots) {
+            const item = inv.getItem(slot);
+            let whitelisted = false;
+            if (item && whitelistItems) {
+              whitelisted = whitelistItems.some((wItem) => {
+                const id = typeof wItem == "string" ? wItem : wItem.typeId;
+                return id == item.typeId;
+              });
+            }
+            if (whitelisted)
+              continue;
+            if (item) {
+              const spawnCoords = { x: coords.x, y: coords.y + 1, z: coords.z };
+              const itemEntity = dime.spawnItem(item, spawnCoords);
+              const force = 0.5;
+              const randomX = (Math.random() - 0.5) * force;
+              const randomZ = (Math.random() - 0.5) * force;
+              itemEntity.applyImpulse({ x: randomX, y: force, z: randomZ });
+            }
+            if (itemToRemplace) {
+              inv.setItem(slot, itemToRemplace);
+            } else if (item) {
+              inv.setItem(slot, void 0);
+            }
+          }
+        } catch (e) {
+          CatLogHandler.handleError(e, "dropItemsPly", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que fuerza la eliminación y dropeo de un item en concreto de un slot del equipamiento de un jugador.
+       * @param {mc.Player} ply Jugador en concreto a considerar.
+       * @param {(mc.EquipmentSlot | mc.EquipmentSlot[])} slots El o los slots en concreto a cambiar eliminar.
+       * @param {?mc.ItemStack} itemToRemplace (Opcional) Un item a poner en su lugar al item a dropear o eliminar.
+       * @param {?(string[] | vanilla.MinecraftItemTypes[] | mc.ItemStack[])} whitelistItems (Opcional) Lista de items que no se pueden dropear o eliminar en este sistema.
+       * @returns {void}
+       * @author HaJuegos - 18-05-2026
+       * @public
+       * @example
+       * ```ts
+       * // Cuando este evento se ejecute, los items de los slots "Helmet, Chestplate y Leggings" seran dropeados y eliminados del jugador. (Si hay items en esos slots)
+       * customEventsManager.dropArmorsPly(ply, [mc.EquipmentSlot.Head, mc.EquipmentSlot.Chest, mc.EquipmentSlot.Legs]);
+       * ```
+       */
+      dropArmorsPly(ply, slots, itemToRemplace, whitelistItems) {
+        const registrationTrace = new Error().stack;
+        try {
+          const coords = ply.location;
+          const dime = ply.dimension;
+          const armorInv = ply.getComponent(mc5.EntityComponentTypes.Equippable);
+          const finalSlots = Array.isArray(slots) ? slots : [slots];
+          for (const slot of finalSlots) {
+            const item = armorInv.getEquipment(slot);
+            let whitelisted = false;
+            if (item && whitelistItems) {
+              whitelisted = whitelistItems.some((wItem) => {
+                const id = typeof wItem == "string" ? wItem : wItem.typeId;
+                return id == item.typeId;
+              });
+            }
+            if (whitelisted)
+              continue;
+            if (item) {
+              const spawnCoords = { x: coords.x, y: coords.y + 1, z: coords.z };
+              const itemEntity = dime.spawnItem(item, spawnCoords);
+              const force = 0.5;
+              const randomX = (Math.random() - 0.5) * force;
+              const randomZ = (Math.random() - 0.5) * force;
+              itemEntity.applyImpulse({ x: randomX, y: force, z: randomZ });
+            }
+            if (itemToRemplace) {
+              armorInv.setEquipment(slot, itemToRemplace);
+            } else if (item) {
+              armorInv.setEquipment(slot, void 0);
+            }
+          }
+        } catch (e) {
+          CatLogHandler.handleError(e, "dropArmorsPly", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que permite el cambio de estado y propiedades a uno o varios items de uno o varios inventarios a un jugador en concreto. Simplificando los lockMode de los items.
+       * @param {LockItemsInvParams} params Los parámetros en concreto para integrar.
+       * @returns {void}
+       * @author HaJuegos - 19-05-2026
+       * @public
+       * @example
+       * ```ts
+       * const params: LockItemsInvParams = {
+       *      ply: source, // Jugador en concreto
+       *      invType: 'inv', // Inventario a cambiar
+       *      lockMethod: mc.ItemLockMode.Inventory, // Tipo de bloqueo a realizar a los items
+       *      keepInDeath: true, // Se asigna la propiedad 'keepInDeath' adicionalmente
+       *      itemsSelection: {
+       *          randomSlots: {
+       *              minSlots: 1,
+       *              maxSlots: 4
+       *          }
+       *      }
+       *  }
+       *
+       * customEventsManager.lockItemsPly(params)
+       * ```
+       */
+      lockItemsPly(params) {
+        const registrationTrace = new Error().stack;
+        try {
+          const { ply, invType, lockMethod, keepInDeath, itemsSelection } = params;
+          const inv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
+          const armorInv = ply.getComponent(mc5.EntityComponentTypes.Equippable);
+          let selectItems = [];
+          const validChange = (currentLock, targetLock) => {
+            return currentLock != targetLock;
+          };
+          const checkWhitelist = (item) => {
+            if (!itemsSelection.whitelistItems)
+              return false;
+            return itemsSelection.whitelistItems.some((wItem) => {
+              const id = typeof wItem == "string" ? wItem : wItem.typeId;
+              return id == item.typeId;
+            });
+          };
+          if (invType == "inv" || invType == "both") {
+            const slots = itemsSelection.specificSlots ? itemsSelection.specificSlots : Array.from({ length: inv.size }, (_, i) => i);
+            for (const slot of slots) {
+              const item = inv.getItem(slot);
+              if (item && !checkWhitelist(item) && validChange(item.lockMode, lockMethod)) {
+                selectItems.push({ type: "inv", slot, item });
+              }
+            }
+          }
+          if (invType == "armor" || invType == "both") {
+            const allSlots = [mc5.EquipmentSlot.Head, mc5.EquipmentSlot.Chest, mc5.EquipmentSlot.Legs, mc5.EquipmentSlot.Feet, mc5.EquipmentSlot.Offhand];
+            const slots = itemsSelection.specificSlots ? itemsSelection.specificSlots : allSlots;
+            for (const slot of slots) {
+              const item = armorInv.getEquipment(slot);
+              if (item && !checkWhitelist(item) && validChange(item.lockMode, lockMethod)) {
+                selectItems.push({ type: "armor", slot, item });
+              }
+            }
+          }
+          if (itemsSelection.randomSlots) {
+            const { minSlots, maxSlots } = itemsSelection.randomSlots;
+            const selecTotal = Math.floor(Math.random() * (maxSlots - minSlots + 1)) + minSlots;
+            selectItems.sort(() => Math.random() - 0.5);
+            selectItems = selectItems.slice(0, selecTotal);
+          }
+          for (const itemData of selectItems) {
+            const { type, slot, item } = itemData;
+            item.lockMode = lockMethod;
+            if (keepInDeath != void 0) {
+              item.keepOnDeath = keepInDeath;
+            }
+            if (type == "inv") {
+              inv.setItem(slot, item);
+            } else {
+              armorInv.setEquipment(slot, item);
+            }
+          }
+        } catch (e) {
+          CatLogHandler.handleError(e, "lockItemsPly", registrationTrace);
+        }
+      }
+      /**
+       * Método auxiliar que simplifica y permite crear un nuevo punto de localización en el locator bar de forma custom con colores, formas y configuraciones personalizadas. Basado en jugador o jugadores que lo tengan visible.
+       * @param {CustomWayPointsParams} params Parámetros necesarios para la creación del punto de localización para el locatorbar.
+       * @returns {mc.LocationWaypoint} Devuelve el punto de localización custom creado si todo salió bien. Si no, será undefined.
+       * @author HaJuegos - 03-08-2026
+       * @public
+       * @example
+       * ```ts
+       * const customWayPoint: CustomWayPointsParams = {
+       *     targetPlys: ply,
+       *     location: ply.location,
+       *     dimension: ply.dimension,
+       *     // Este parametro puede ser un icono con forma y colores vanilla o sino, una textura custom.
+       *     iconTexture: {
+       *         path: 'textura.png',
+       *         iconWidth: 1,
+       *         iconHeight: 1
+       *     }
+       * }
+       *
+       * customEventsManager.createCustomWayPoint(customWayPoint);
+       * ```
+       */
+      createCustomWayPoint(params) {
+        const registrationTrace = new Error().stack;
+        try {
+          const { targetPlys, location, dimension, iconTexture, color, visible } = params;
+          const texture = "shape" in iconTexture ? iconTexture.shape : { path: iconTexture.path, iconWidth: iconTexture.iconWidth, iconHeight: iconTexture.iconHeight };
+          const selectTexture = {
+            textureBoundsList: [{ lowerBound: 0, texture }]
+          };
+          const point = new mc5.LocationWaypoint({ dimension, x: location.x, y: location.y, z: location.z }, selectTexture, color);
+          if (visible == false) {
+            point.isEnabled = false;
+          }
+          const plys = Array.isArray(targetPlys) ? targetPlys : [targetPlys];
+          for (const ply of plys) {
+            ply.locatorBar.addWaypoint(point);
+          }
+          return point;
+        } catch (e) {
+          CatLogHandler.handleError(e, "customWaypoint", registrationTrace);
+        }
+      }
+    };
+    customEventsManager = new CustomEventsSimplified();
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/core/customTypes.js
+var init_customTypes = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/core/customTypes.js"() {
+  }
+});
+
+// node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/index.js
+var init_dist = __esm({
+  "node_modules/.pnpm/simplified-mojang-api@0.0.6_459a99ad59249620eb2cb8be39dfc2d8/node_modules/simplified-mojang-api/dist/index.js"() {
+    init_eventsManager();
+    init_afterEventsSimplifiedManager();
+    init_beforeEventsSimplifiedManager();
+    init_worldToolsSimplifiedManager();
+    init_debugToolsSimplified();
+    init_fakePlysManagerSimplififed();
+    init_customToolsManager();
+    init_customTypes();
+  }
+});
+
 // node_modules/.pnpm/@minecraft+vanilla-data@1.26.40/node_modules/@minecraft/vanilla-data/lib/index.js
 var MinecraftBiomeTypes, MinecraftBlockTypes, MinecraftCameraPresetsTypes, MinecraftCooldownCategoryTypes, MinecraftDimensionTypes, MinecraftEffectTypes, MinecraftEnchantmentTypes, MinecraftEntityTypes, MinecraftFeatureTypes, MinecraftItemTypes, MinecraftPotionDeliveryTypes, MinecraftPotionEffectTypes;
 var init_lib = __esm({
@@ -3481,3180 +6310,90 @@ var init_lib = __esm({
   }
 });
 
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/core/errorHandler.js
-var CatLogHandler;
-var init_errorHandler = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/core/errorHandler.js"() {
-    CatLogHandler = class {
-      constructor() {
-      }
-      /**
-       * Método principal que convierte y modifica los eventos para cuando hay un error en la API, siendo más detallada al respecto y con guías.
-       * @param {*} e Error en concreto que sucedió.
-       * @param {string} ctxName Evento en concreto donde sucedió el error.
-       * @param {?string} [registrationTrace] (Opcional) El track en concreto donde haya sucedido el error.
-       * @author HaJuegos - 31-03-2026
-       * @public
-       * @static
-       */
-      static handleError(e, ctxName, registrationTrace) {
-        const error = e;
-        let isInfoLevel = false;
-        let logMessage = `
-\xA7c=== [CATLOG ERROR] ===\xA7r
-`;
-        logMessage += `\xA7eContexto:\xA7r ${ctxName}
-`;
-        logMessage += `\xA7cMotivo:\xA7r ${error.message}
-`;
-        if (error.message.includes("restricted execution")) {
-          logMessage += `\xA7b[TIP]:\xA7r Envuelve tu logica dentro de un 'worldToolsSimplified.setRun()' o usa async.
-`;
-        } else if (error.message.includes("early execution")) {
-          logMessage += `\xA7b[TIP]:\xA7r Mueve este codigo al evento 'onWorldReady' para asegurarte de que los datos existan.
-`;
-        } else if (error.message.includes("Entity being invalid") || error.message.includes("has the Entity been removed")) {
-          logMessage += `\xA7b[TIP]:\xA7r La entidad ya fue eliminada del mundo. Verifica si es valida con 'if (entity.isValid)' antes de intentar algo con ella.
-`;
-        } else if (error.message.includes("not in a chunk currently loaded")) {
-          isInfoLevel = true;
-        }
-        const execStack = error.stack?.split("\n").find((line) => line.includes("at ") && !line.includes("BaseEventManager") && !line.includes("CatlogErrorHandler") && !line.includes("WorldToolsSimplified"));
-        if (execStack) {
-          logMessage += `\xA74[Fallo exacto]:\xA7r ${execStack.trim()}
-`;
-        }
-        if (registrationTrace) {
-          const cleanTrace = registrationTrace.split("\n").filter((line) => line.includes("at ") && !line.includes("__require") && !line.includes("<anonymous>") && !line.includes("BaseEventManager") && !line.includes("CatlogErrorHandler") && !line.includes("WorldToolsSimplified")).map((line) => `  -> ${line.trim()}`).join("\n");
-          if (cleanTrace) {
-            logMessage += `\xA7a[Origen de la Ejecuci\xF3n]:\xA7r
-${cleanTrace}
-`;
-          }
-        }
-        logMessage += `\xA7c========================\xA7r`;
-        if (isInfoLevel) {
-          console.info(logMessage);
-        } else {
-          console.warn(logMessage);
-        }
-      }
-    };
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/core/eventsManager.js
-var BaseEventManager;
-var init_eventsManager = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/core/eventsManager.js"() {
-    init_errorHandler();
-    BaseEventManager = class {
-      /**
-       * Argumentos principales para instanciar un evento base creado con eventos relacionales.
-       * @constructor
-       * @param {EventRegister<T>} evnSignal Evento relacional a considerar.
-       * @param {string} evnName Nombre Simplificado dado a este evento relacional a considerar.
-       * @author HaJuegos - 15-07-2026
-       */
-      constructor(evnSignal, evnName) {
-        this.evnSignal = evnSignal;
-        this.evnName = evnName;
-        this.callbacks = [];
-        this.isSub = false;
-      }
-      /**
-       * Método que registra el callback para los eventos relacionales del evento final. Internamente solo existe un único suscrito por evento; Entonces los callbacks adicionales se agregan a un array y se ejecutan dentro del mismo listener.
-       * @param callback La lógica individual del evento final.
-       * @version 2 Cambio total de instancias en su formato de registro para optimizaciones internas.
-       * @returns {void}
-       * @public
-       * @author HaJuegos - 15-07-2026
-       */
-      register(callback) {
-        const registrationTrace = new Error().stack;
-        this.callbacks.push({ fn: callback, trance: registrationTrace });
-        if (!this.isSub) {
-          this.isSub = true;
-          this.evnSignal.subscribe((args) => {
-            for (const { fn, trance } of this.callbacks) {
-              try {
-                fn(args);
-              } catch (e) {
-                CatLogHandler.handleError(e, `Evento ${this.evnName}`, trance);
-              }
-            }
-          });
-        }
-      }
-      /**
-       * Método que elimina un callback previamente registrado.
-       * @param {(args: T) => void} callback Referencia exacta a la función registrada en el register.
-       * @public
-       * @author HaJuegos - 15-07-2026
-       */
-      unregister(callback) {
-        this.callbacks = this.callbacks.filter((c) => c.fn != callback);
-      }
-    };
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/afterEventsSimplifiedManager.js
-import * as mc from "@minecraft/server";
-var AfterEventsSimplified, afterEventsSimplified;
-var init_afterEventsSimplifiedManager = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/afterEventsSimplifiedManager.js"() {
-    init_eventsManager();
-    AfterEventsSimplified = class {
-      /**
-       * Eventos que se inicializan cuando la clase es llamada o inicializada.
-       * @constructor
-       */
-      constructor() {
-        this.entityDieManager = new BaseEventManager(mc.world.afterEvents.entityDie, "AfterEntityDie");
-        this.playerSpawnManager = new BaseEventManager(mc.world.afterEvents.playerSpawn, "AfterPlayerSpawn");
-        this.worldLoadManager = new BaseEventManager(mc.world.afterEvents.worldLoad, "AfterWorldLoad");
-        this.chatSendManager = new BaseEventManager(mc.world.afterEvents.chatSend, "AfterChatSend");
-        this.itemUseManager = new BaseEventManager(mc.world.afterEvents.itemUse, "AfterItemUse");
-        this.explosionManager = new BaseEventManager(mc.world.afterEvents.explosion, "AfterExplodes");
-        this.onProjectileHitEntityManager = new BaseEventManager(mc.world.afterEvents.projectileHitEntity, "AfterProyectileHitEntity");
-        this.onProjectileHitBlockManager = new BaseEventManager(mc.world.afterEvents.projectileHitBlock, "AfterProyectileHitBlock");
-        this.onHitEntityManager = new BaseEventManager(mc.world.afterEvents.entityHitEntity, "AfterHitEntity");
-        this.onEntityHurtManager = new BaseEventManager(mc.world.afterEvents.entityHurt, "AfterHurtEntity");
-        this.onHealthEntityChangeManager = new BaseEventManager(mc.world.afterEvents.entityHealthChanged, "AfterHealthChangeEntity");
-        this.onChangeDimensionManager = new BaseEventManager(mc.world.afterEvents.playerDimensionChange, "AfterChangeDimension");
-        this.interactEntityManager = new BaseEventManager(mc.world.afterEvents.playerInteractWithEntity, "AfterInteractEntity");
-        this.interactBlockManager = new BaseEventManager(mc.world.afterEvents.playerInteractWithBlock, "AfterInteractBlock");
-        this.entitySpawnsManager = new BaseEventManager(mc.world.afterEvents.entitySpawn, "AfterEntitySpawns");
-        this.effectAddManager = new BaseEventManager(mc.world.afterEvents.effectAdd, "AfterEffectAdd");
-        this.placeBlockManager = new BaseEventManager(mc.world.afterEvents.playerPlaceBlock, "AfterPlaceBlock");
-        this.breakBlockManager = new BaseEventManager(mc.world.afterEvents.playerBreakBlock, "AfterBreakBlock");
-        this.dataEventsManager = new BaseEventManager(mc.world.afterEvents.dataDrivenEntityTrigger, "AfterDataEvents");
-        this.changeInvManager = new BaseEventManager(mc.world.afterEvents.playerInventoryItemChange, "AfterInvChangeOnPly");
-        this.onGetItem = new BaseEventManager(mc.world.afterEvents.entityItemPickup, "AfterEntityPickItem");
-        this.onDropItem = new BaseEventManager(mc.world.afterEvents.entityItemDrop, "AfterEntityDropItem");
-        this.playerJoinsManager = new BaseEventManager(mc.world.afterEvents.playerJoin, "AfterPlayerJoins");
-        this.playerLeavesManager = new BaseEventManager(mc.world.afterEvents.playerLeave, "AfterPlayerLeaves");
-        this.entityLoadWorld = new BaseEventManager(mc.world.afterEvents.entityLoad, "AfterEntityLoadInWorld");
-        this.entityHealh = new BaseEventManager(mc.world.afterEvents.entityHeal, "AfterEntityHealing");
-        this.entityRemove = new BaseEventManager(mc.world.afterEvents.entityRemove, "AfterEntityRemove");
-        this.entityTamed = new BaseEventManager(mc.world.afterEvents.entityTamed, "AfterEntityTamed");
-        this.soundCompleted = new BaseEventManager(mc.world.afterEvents.soundCompleted, "AfterSoundFinish");
-        this.weatherChange = new BaseEventManager(mc.world.afterEvents.weatherChange, "AfterWeatherChange");
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionado cuando una entidad muere de forma simplificada.
-       * @param {(args: mc.EntityDieAfterEvent) => void} callback Los argumentos del evento y su lógica.
-       * @returns {void}
-       * @author HaJuegos - 11-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onEntityDie((args) => {
-       *     const entity = args.deadEntity;
-       *     const source = args.damageSource;
-       *
-       *     console.warn(`La entidad ${entity.typeId} murió en ${entity.location} debido a ${source.cause}.`);
-       * });
-       * ```
-       */
-      onEntityDie(callback) {
-        this.entityDieManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionado cuando un jugador respawnea de forma simplificada.
-       * @param {(args: mc.PlayerSpawnAfterEvent) => void} callback Los argumentos del evento y su lógica.
-       * @returns {void}
-       * @author HaJuegos - 11-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onPlayerSpawns((args) => {
-       *     const ply = args.player;
-       *     const firstSpawn = args.initialSpawn;
-       *
-       *     console.warn(`El Jugador ${ply.name} spawneó en ${ply.location}. (Primera aparicion: ${firstSpawn})`);
-       * });
-       * ```
-       */
-      onPlayerSpawns(callback) {
-        this.playerSpawnManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un mundo se terminó de cargar de forma simplificada.
-       * @param {(args: mc.WorldLoadAfterEvent) => void} callback Los argumentos del evento y su lógica.
-       * @returns {void}
-       * @author HaJuegos - 11-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onWorldReady(() => {
-       *     console.warn(`El mundo se ha cargado correctamente`);
-       * });
-       * ```
-       */
-      onWorldReady(callback) {
-        this.worldLoadManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando se recibe un mensaje en el chat de forma simplificada.
-       * @param {(args: mc.ChatSendAfterEvent) => void} callback Los argumentos y lógica a ejecutar en el evento.
-       * @returns {void}
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onSendMessageChat((args) => {
-       *     console.warn(`El usuario ${args.sender.name} envio el mensaje ${args.message}`);
-       * });
-       * ```
-       */
-      onSendMessageChat(callback) {
-        this.chatSendManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando ya se usa el item de forma simplificada.
-       * @param {(args: mc.ItemUseAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 15-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onUseItem((args) => {
-       *     const ply = args.source;
-       *     const item = args.itemStack;
-       *
-       *     console.warn(`El Jugador ${ply.name} uso el item ${item.typeId}`);
-       * });
-       * ```
-       */
-      onUseItem(callback) {
-        this.itemUseManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando algo explotó de forma simplificada.
-       * @param {(args: mc.ExplosionAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 17-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onExplodes((args) => {
-       *     const source = args.source;
-       *
-       *     if (source && source.typeId == 'minecraft:creeper') {
-       *        console.warn(`Un creeper explotó.`);
-       *     }
-       * });
-       * ```
-       */
-      onExplodes(callback) {
-        this.explosionManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un proyectil golpea una entidad de forma simplificada.
-       * @param {(args: mc.ProjectileHitEntityAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 18-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onProjectileHitEntity((args) => {
-       *     const sourceEntity = args.source;
-       *     const hitEntity = args.getEntityHit().entity;
-       *
-       *     console.warn(`${source?.typeId} ha golpeado a ${hitEntity.typeId}.`);
-       * });
-       * ```
-       */
-      onProjectileHitEntity(callback) {
-        this.onProjectileHitEntityManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un proyectil golpea un bloque de forma simplificada.
-       * @param {(args: mc.ProjectileHitBlockAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 18-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onProjectileHitBlock((args) => {
-       *     const sourceEntity = args.source;
-       *     const hitBlock = args.getBlockHit().entity;
-       *
-       *     console.warn(`${source.typeId} ha golpeado al bloque ${hitBlock.typeId}.`);
-       * });
-       * ```
-       */
-      onProjectileHitBlock(callback) {
-        this.onProjectileHitBlockManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando se golpea una entidad de forma simplificada.
-       * @param {(args: mc.EntityHitEntityAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 18-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onHitEntity((args) => {
-       *    const sourceEntity = args.damagingEntity;
-       *    const hitEntity = args.hitEntity;
-       *
-       *    console.warn(`${sourceEntity.typeId} ha golpeado a ${hitEntity.typeId}`);
-       * });
-       * ```
-       */
-      onHitEntity(callback) {
-        this.onHitEntityManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando se lastima una entidad de forma simplificada.
-       * @param {(args: mc.EntityHurtAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 18-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onHurtEntity((args) => {
-       *    const source = args.damageSource;
-       *    const sourceEntity = source.damagingEntity;
-       *    const cause = source.cause;
-       *    const hitEntity = args.hurtEntity;
-       *
-       *    console.warn(`${sourceEntity.typeId} ha lastimado a ${hitEntity.typeId} mediante ${cause}`);
-       * });
-       * ```
-       */
-      onHurtEntity(callback) {
-        this.onEntityHurtManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando la vida de una entidad cambia de forma simplificada.
-       * @param {(args: mc.EntityHealthChangedAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 19-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onHealthEntityChange((args) => {
-       *    console.warn(`${args.entity.typeId} tenia ${args.oldValue} de vida y ahora tiene ${args.newValue}.`);
-       * });
-       * ```
-       */
-      onHealthEntityChange(callback) {
-        this.onHealthEntityChangeManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador cambia de dimensión de forma simplificada.
-       * @param {(args: mc.PlayerDimensionChangeAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onChangeDimension((args) => {
-       *     const ply = args.player;
-       *     const fromDime = args.fromDimension;
-       *     const toDime = args.toDimension;
-       *
-       *     console.warn(`${ply.name} estaba en el ${fromDime.id} y ahora está en ${toDime.id}.`);
-       * });
-       * ```
-       */
-      onChangeDimension(callback) {
-        this.onChangeDimensionManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador interactuó con una entidad de forma simplificada.
-       * @param {(args: mc.PlayerInteractWithEntityAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onInteractEntity((args) => {
-       *     const ply = args.player;
-       *     const hitEntity = args.target;
-       *
-       *     console.warn(`${ply.name} interactuó con ${hitEntity.typeId}.`);
-       * });
-       * ```
-       */
-      onInteractEntity(callback) {
-        this.interactEntityManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador interactuó con un bloque de forma simplificada.
-       * @param {(args: mc.PlayerInteractWithBlockAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onInteractBlock((args) => {
-       *     const ply = args.player;
-       *     const block = args.block;
-       *
-       *     console.warn(`${ply.name} interactuó con el bloque ${block.typeId}.`);
-       * });
-       * ```
-       */
-      onInteractBlock(callback) {
-        this.interactBlockManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad spawnea de forma simplificada.
-       * @param {(args: mc.EntitySpawnAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onEntitySpawns((args) => {
-       *     console.warn(`${args.entity.typeId} ha spawneado en el mundo`);
-       * });
-       * ```
-       */
-      onEntitySpawns(callback) {
-        this.entitySpawnsManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un efecto es añadido en una entidad o jugador de forma simplificada.
-       * @param {(args: mc.EffectAddAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onAddsEffect((args) => {
-       *     console.warn(`${args.entity.typeId} ahora tiene el efecto ${args.effect.displayName}.`);
-       * });
-       * ```
-       */
-      onAddsEffect(callback) {
-        this.effectAddManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un bloque es colocado de forma simplificada.
-       * @param {(args: mc.PlayerPlaceBlockAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onPlaceBlock((args) => {
-       *     console.warn(`${args.player.name} coloco el bloque ${args.block.typeId}.`);
-       * });
-       * ```
-       */
-      onPlaceBlock(callback) {
-        this.placeBlockManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un bloque es roto de forma simplificada.
-       * @param {(args: mc.PlayerBreakBlockAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 23-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onBreakBlock((args) => {
-       *     console.warn(`${args.player.name} rompio el bloque ${args.block.typeId}.`);
-       * });
-       * ```
-       */
-      onBreakBlock(callback) {
-        this.breakBlockManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad ejecuta uno o varios de sus eventos de su JSON para cambiar componentes, o también por comandos como /event. De forma más simple, sirve como un log de cuales component groups cambió la entidad en ese instante.
-       * @param {(args: mc.DataDrivenEntityTriggerAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 26-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.getEntityEvents((args) => {
-       *     const entity = args.entity;
-       *     const events = args.getModifiers();
-       *
-       *     if (entity.typeId == 'minecraft:player' && entity instanceof mc.Player) {
-       *        console.warn(`${entity.name} ha cambiado de componentes: ${JSON.stringify(events)}`);
-       *     }
-       * });
-       * ```
-       */
-      getEntityEvents(callback) {
-        this.dataEventsManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un item se remueve o añade a un inventario de un jugador de forma simplificada.
-       * @param {(args: mc.PlayerInventoryItemChangeAfterEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 01-04-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onPlyInvChange((args) => {
-       *     const previusItem = args.beforeItemStack;
-       *     const newItem = args.itemStack;
-       *     const ply = args.player;
-       *     const slotI = args.slot;
-       *     const invType = args.inventoryType;
-       *
-       *     console.warn(`${ply.name} previamente tenía el item ${previusItem.typeId} en el slot ${slotI} en el inventario ${invType}; Y ahora tiene el item ${newItem.typeId} en su lugar`);
-       * });
-       * ```
-       */
-      onPlyInvChange(callback) {
-        this.changeInvManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad obtiene items de forma simplificada.
-       * @param {(args: mc.EntityItemPickupAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 19-06-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onGetItemEntity((args) => {
-       *      const item = args.items;
-       *      const entity = args.entity;
-       *
-       *      console.log(`${entity.typeId} ha agarrado los items ${JSON.stringify(item)}.`);
-       * });
-       * ```
-       */
-      onGetItemEntity(callback) {
-        this.onGetItem.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad dropea items de forma simplificada.
-       * @param {(args: mc.EntityItemDropAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 19-06-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onDropItemEntity((args) => {
-       *      const item = args.items;
-       *      const entity = args.entity;
-       *
-       *      console.log(`${entity.typeId} ha dropeado los items ${JSON.stringify(item)}.`);
-       * });
-       * ```
-       */
-      onDropItemEntity(callback) {
-        this.onDropItem.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador se une al mundo de forma simplificada.
-       * @param {(args: mc.PlayerJoinAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 21-06-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onPlayerJoinsWorld((args) => {
-       *      const name = args.playerName;
-       *
-       *      console.log(`${name} entró al mundo.`);
-       * });
-       * ```
-       */
-      onPlayerJoinsWorld(callback) {
-        this.playerJoinsManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador se va del mundo de forma simplificada.
-       * @param {(args: mc.PlayerLeaveAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 21-06-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onPlayerLeavesWorld((args) => {
-       *      const name = args.playerName;
-       *
-       *      console.log(`${name} salió del mundo.`);
-       * });
-       * ```
-       */
-      onPlayerLeavesWorld(callback) {
-        this.playerLeavesManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad se carga en el mundo de forma simplificada.
-       * @param {(args: mc.EntityLoadAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 21-07-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onEntityLoadInWorld((args) => {
-       *      const typeId = args.entity;
-       *
-       *      console.log(`${typeId} se cargó en el mundo previamente.`);
-       * });
-       * ```
-       */
-      onEntityLoadInWorld(callback) {
-        this.entityLoadWorld.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad se curó de diferentes formas de forma simplificada.
-       * @param {(args: mc.EntityHealBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 19-06-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onEntityHeals((args) => {
-       *      const sourceHealh = args.healSource;
-       *      const entity = args.healedEntity;
-       *
-       *      console.log(`${entity.typeId} se regeneró por vía ${sourceHealh.cause}.`);
-       * });
-       * ```
-       */
-      onEntityHeals(callback) {
-        this.entityHealh.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad es removida del mundo detectando solo su ID de forma simplificada.
-       * @param {(args: mc.EntityRemoveAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @public
-       * @author HaJuegos - 06-08-2026
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * afterEventsSimplified.onEntityRemove((args) => {
-       *      const typeID = args.typeId;
-       *      const entityID = args.removedEntityId;
-       *
-       *      console.log(`${typeId} fue eliminado del mundo, su id era ${entityID}.`);
-       * });
-       * ```
-       */
-      onEntityRemove(callback) {
-        this.entityRemove.register(callback);
-      }
-      /**
-       * Metodo auxiliar que ejecuta los eventos relacionados cuando una entidad es domada de forma simplificada.
-       * @param {(args: mc.EntityTamedAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 30-08-2026
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @public
-       * @example
-       * ```ts
-       * afterEventsSimplified.onTamedEntity((args) => {
-       *      const { tamingEntity: sourceEntity, entity } = args
-       *
-       *      console.log(`${sourceEntity.typeId} ha domando a la entidad ${entity.typeId}.`);
-       * });
-       * ```
-       */
-      onTamedEntity(callback) {
-        this.entityTamed.register(callback);
-      }
-      /**
-       * Metodo auxiliar que ejecuta los eventos relacionados cuando un sonido termina de forma simplificada.
-       * @param {(args: mc.SoundCompletedAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 30-08-2026
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @public
-       * @example
-       * ```ts
-       * afterEventsSimplified.onSoundFinish((args) => {
-       *      const { soundInstanceId: idSound } = args
-       *
-       *      console.log(`${idSound} ha terminado o ha dejado de sonar.`);
-       * });
-       * ```
-       */
-      onSoundFinish(callback) {
-        this.soundCompleted.register(callback);
-      }
-      /**
-       * Metodo auxiliar que ejecuta los eventos relacionados cuando el clima ha cambiado en una dimension de forma simplificada.
-       * @param {(args: mc.WeatherChangeAfterEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 30-08-2026
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @public
-       * @example
-       * ```ts
-       * afterEventsSimplified.onWeatherChange((args) => {
-       *      const { dimension, newWeather, previousWeather } = args
-       *
-       *      console.log(`En la dimension ${dimension.id} el clima ha pasado de ${previousWeather} a ${newWeather}.`);
-       * });
-       * ```
-       */
-      onWeatherChange(callback) {
-        this.weatherChange.register(callback);
-      }
-    };
-    afterEventsSimplified = new AfterEventsSimplified();
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/beforeEventsSimplifiedManager.js
-import * as mc2 from "@minecraft/server";
-var BeforeEventsSimplified, beforeEventsSimplified;
-var init_beforeEventsSimplifiedManager = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/beforeEventsSimplifiedManager.js"() {
-    init_eventsManager();
-    BeforeEventsSimplified = class {
-      /**
-       * Eventos que se inicializan cuando la clase es llamada o inicializada.
-       * @constructor
-       */
-      constructor() {
-        this.startUpManager = new BaseEventManager(mc2.system.beforeEvents.startup, "BeforeStartup");
-        this.shutDownManager = new BaseEventManager(mc2.system.beforeEvents.shutdown, "BeforeShutdown");
-        this.interactBlockManager = new BaseEventManager(mc2.world.beforeEvents.playerInteractWithBlock, "BeforeInteractBlock");
-        this.chatSendManager = new BaseEventManager(mc2.world.beforeEvents.chatSend, "BeforeChatSend");
-        this.itemUseManager = new BaseEventManager(mc2.world.beforeEvents.itemUse, "BeforeItemUse");
-        this.explosionManager = new BaseEventManager(mc2.world.beforeEvents.explosion, "BeforeExplodes");
-        this.interactEntityManager = new BaseEventManager(mc2.world.beforeEvents.playerInteractWithEntity, "BeforeInteractEntity");
-        this.effectAddManager = new BaseEventManager(mc2.world.beforeEvents.effectAdd, "BeforeAddEffect");
-        this.placeBlockManager = new BaseEventManager(mc2.world.beforeEvents.playerPlaceBlock, "BeforePlayerPlaceBlock");
-        this.breakBlockManager = new BaseEventManager(mc2.world.beforeEvents.playerBreakBlock, "BeforePlayerBreakBlock");
-        this.entityHurtManager = new BaseEventManager(mc2.world.beforeEvents.entityHurt, "BeforeEtntityHurt");
-        this.entityItemPickUpManager = new BaseEventManager(mc2.world.beforeEvents.entityItemPickup, "BeforeEntityItemPickup");
-        this.entityHealing = new BaseEventManager(mc2.world.beforeEvents.entityHeal, "BeforeEntityHealing");
-        this.entityRemove = new BaseEventManager(mc2.world.beforeEvents.entityRemove, "BeforeEntityRemove");
-        this.entityTamed = new BaseEventManager(mc2.world.beforeEvents.entityTamed, "BeforeEntityTamed");
-        this.weatherChange = new BaseEventManager(mc2.world.beforeEvents.weatherChange, "BeforeWeatherChange");
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando el add-on se carga por primera vez
-       * @param {(args: mc.StartupEvent) => void} callback Los argumentos del evento y su lógica.
-       * @returns {void}
-       * @author HaJuegos - 11-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onAddonStarts((args) => {
-       *     console.warn('El addon está iniciando');
-       * });
-       * ```
-      */
-      onAddonStarts(callback) {
-        this.startUpManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un mundo o servidor se cierra de forma simplificada.
-       * @param {(args: mc.ShutdownEvent) => void} callback Los argumentos del evento y su lógica.
-       * @returns {void}
-       * @author HaJuegos - 11-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onAddonStops((args) => {
-       *     console.warn('El addon se está deteniendo');
-       * });
-       * ```
-      */
-      onAddonStops(callback) {
-        this.shutDownManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando se interactúa con un bloque antes de que pase de forma simplificada.
-       * @param {(args: mc.PlayerInteractWithBlockBeforeEvent) => void} callback Los argumentos del evento y su lógica.
-       * @returns {void}
-       * @author HaJuegos - 11-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onInteractBlock((args) => {
-       *     console.warn(`Se está interactuando con el bloque ${args.block.typeId}`);
-       * });
-       * ```
-      */
-      onInteractBlock(callback) {
-        this.interactBlockManager.register(callback);
-      }
-      /**
-       * Método auxiliar que controla los eventos del chat, manejando los mensajes enviados antes de que se muestren.
-       * @param {(args: mc.ChatSendBeforeEvent) => void} callback Los argumentos del evento y su lógica.
-       * @returns {void}
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.chatManager((args) => {
-       *     console.warn(`El usuario ${args.sender.name} ha enviado el mensaje ${args.message}`);
-       *     args.cancel = true; // El mensaje que envió el jugador es cancelado.
-       * });
-       * ```
-       */
-      chatManager(callback) {
-        this.chatSendManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando se va a usar un item de forma simplificada.
-       * @param {(args: mc.ItemUseBeforeEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 15-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onUseItem((args) => {
-       *     console.warn(`Se está usando el item ${args.itemStack.typeId}.`);
-       *     args.cancel = true;
-       * });
-       * ```
-       */
-      onUseItem(callback) {
-        this.itemUseManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando algo está a punto de explotar de forma simplificada.
-       * @param {(args: mc.ExplosionBeforeEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 17-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onExplosion((args) => {
-       *     const source = args.source;
-       *
-       *     if (source && source.typeId == 'minecraft:creeper') {
-       *         console.warn(`Un creeper está a punto de explotar.`);
-       *         args.cancel = true; // Ya no va a explotar.
-       *     }
-       * });
-       * ```
-       */
-      onExplosion(callback) {
-        this.explosionManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador va a interactuar con una entidad de forma simplificada.
-       * @param {(args: mc.PlayerInteractWithEntityBeforeEvent) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onInteractEntity((args) => {
-       *     const ply = args.player;
-       *     const hitEntity = args.target;
-       *
-       *     console.warn(`${ply.name} está interactuando con ${hitEntity.typeId}.`);
-       *
-       *     args.cancel = true; // ya no se puede.
-       * });
-       * ```
-       */
-      onInteractEntity(callback) {
-        this.interactEntityManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un efecto está a punto de darse a una entidad de forma simplificada.
-       * @param {(args: mc.EffectAddBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onEffectAdds((args) => {
-       *     console.warn(`${args.entity.typeId} tendrá el efecto ${args.effect.displayName}.`);
-       *     args.cancel = true; // Ahora ya no sucede.
-       * });
-       * ```
-       */
-      onEffectAdds(callback) {
-        this.effectAddManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador va a colocar un bloque de forma simplificada.
-       * @param {(args: mc.PlayerPlaceBlockBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 20-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onPlaceBlock((args) => {
-       *     console.warn(`${args.player.name} va a colocar el bloque ${args.block.typeId}.`);
-       *     args.cancel = true; // Ahora ya no puede colocarlo
-       * });
-       * ```
-       */
-      onPlaceBlock(callback) {
-        this.placeBlockManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando un jugador va a romper un bloque de forma simplificada.
-       * @param {(args: mc.PlayerBreakBlockBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 23-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onBreakBlock((args) => {
-       *     console.warn(`${args.player.name} va a romper el bloque ${args.block.typeId}.`);
-       *     args.cancel = true; // Ahora ya no puede romperlo
-       * });
-       * ```
-       */
-      onBreakBlock(callback) {
-        this.breakBlockManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad va a ser lastimada de forma simplificada.
-       * @param {(args: mc.EntityHurtBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 19-06-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onEntityHurt((args) => {
-       *      const hurtEntity = args.hurtEntity;
-       *      const source = args.damageSource;
-       *      const sourceEntity = source.damagingEntity;
-       *
-       *      if (hurtEntity && sourceEntity) {
-       *          console.log(`${sourceEntity.typeId} va a lastimar a ${hurtEntity.typeId}.`);
-       *
-       *          args.cancel = true; // Ya no funciona
-       *      }
-       * });
-       * ```
-       */
-      onEntityHurt(callback) {
-        this.entityHurtManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad va a agarrar un item forma simplificada.
-       * @param {(args: mc.EntityItemPickupBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 19-06-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onItemPickupEntity((args) => {
-       *      const item = args.item;
-       *      const entity = args.entity;
-       *
-       *      console.log(`${entity.typeId} va a obtener el item ${item.typeId}.`);
-       *      args.cancel = true; // Ya no funciona
-       * });
-       * ```
-       */
-      onItemPickupEntity(callback) {
-        this.entityItemPickUpManager.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad se va a curar de diferentes formas de forma simplificada.
-       * @param {(args: mc.EntityHealBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 19-06-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onEntityHeal((args) => {
-       *      const sourceHealh = args.healSource;
-       *      const entity = args.healedEntity;
-       *
-       *      console.log(`${entity.typeId} se va a regenerar con ${sourceHealh.cause}.`);
-       *      args.cancel = true; // Ya no funciona
-       * });
-       * ```
-       */
-      onEntityHeal(callback) {
-        this.entityHealing.register(callback);
-      }
-      /**
-       * Método auxiliar que ejecuta los eventos relacionados cuando una entidad va a ser removida del mundo de forma simplificada.
-       * @param {(args: mc.EntityRemoveBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @public
-       * @author HaJuegos - 06-08-2026
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onEntityRemoved((args) => {
-       *      const entityRemoved = args.removedEntity;
-       *
-       *      console.log(`${entityRemoved.typeId} va a ser eliminado del mundo.`);
-       *      args.cancel = true; // Ya no se eliminará.
-       * });
-       * ```
-       */
-      onEntityRemoved(callback) {
-        this.entityRemove.register(callback);
-      }
-      /**
-       * Metodo auxiliar que ejecuta los eventos relacionados cuando una entidad va a ser domada de forma simplificada.
-       * @param {(args: mc.EntityTamedBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 30-08-2026
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @public
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onEntityTame((args) => {
-       *      const { tamingEntity: sourceEntity, entity } = args
-       *
-       *      console.log(`${sourceEntity.typeId} va a domar a la entidad ${entity.typeId}.`);
-       *
-       *      args.cancel = true; // Ya no puede ser domada.
-       * });
-       * ```
-       */
-      onEntityTame(callback) {
-        this.entityTamed.register(callback);
-      }
-      /**
-       * Metodo auxiliar que ejecuta los eventos relacionados cuando el clima va a cambiar de forma simplificada.
-       * @param {(args: mc.WeatherChangeBeforeEvent) => void} callback Los eventos relacionados.
-       * @returns {void}
-       * @author HaJuegos - 30-08-2026
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @public
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onWeatherChange((args) => {
-       *      const { previousWeather, newWeather } = args
-       *
-       *      console.log(`El clima va a pasar de ${previousWeather} a ${newWeather}.`);
-       *
-       *      args.cancel = true; // Ya no va a ocurrir.
-       * });
-       * ```
-       */
-      onWeatherChange(callback) {
-        this.weatherChange.register(callback);
-      }
-      // Metodos no auxiliares
-      /**
-       * Método auxiliar que registra y ejecuta los eventos relacionados cuando se quiere registrar un custom component de un bloque.
-       * @param {string} nameComponent Nombre del componente en cuestión a registrar.
-       * @param {mc.BlockCustomComponent} eventsComponent Los eventos del componente que se van a ejecutar.
-       * @author HaJuegos - 17-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * // Método casual
-       * beforeEventsSimplified.createBlockComponent('ha:custom_component', {
-       *    onBreak(arg) {
-       *       console.warn(`El bloque ${args.block.typeId} se rompió.`);
-       *    }
-       * } as mc.BlockCustomComponent);
-       *
-       * // Método más ordenado
-       * const events: mc.BlockCustomComponent = {
-       *    onBreak(arg) {
-       *       console.warn(`El bloque ${args.block.typeId} se rompió.`);
-       *    }
-       * }
-       *
-       * beforeEventsSimplified.createBlockComponent('ha:custom_component', events);
-       * ```
-       */
-      createBlockComponent(nameComponent, eventsComponent) {
-        this.onAddonStarts((args) => {
-          args.blockComponentRegistry.registerCustomComponent(nameComponent, eventsComponent);
-        });
-      }
-      /**
-       * Método auxiliar que registra y ejecuta los eventos relacionados cuando se quiere registrar un custom component de un item.
-       * @param {string} nameComponent Nombre del componente en cuestión a registrar.
-       * @param {mc.ItemCustomComponent} eventsComponent Los eventos del componente que se van a ejecutar.
-       * @author HaJuegos - 17-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * // Método casual
-       * beforeEventsSimplified.createItemComponent('ha:custom_component', {
-       *    onConsume(arg) {
-       *       console.warn(`El item ${args.itemStack.typeId} fue consumido.`);
-       *    }
-       * } as mc.ItemCustomComponent);
-       *
-       * // Método más ordenado
-       * const events: mc.ItemCustomComponent = {
-       *    onConsume(arg) {
-       *       console.warn(`El item ${args.itemStack.typeId} fue consumido.`);
-       *    }
-       * }
-       *
-       * beforeEventsSimplified.createItemComponent('ha:custom_component', events);
-       * ```
-       */
-      createItemComponent(nameComponent, eventsComponent) {
-        this.onAddonStarts((args) => {
-          args.itemComponentRegistry.registerCustomComponent(nameComponent, eventsComponent);
-        });
-      }
-      /**
-       * Método auxiliar que registra y ejecuta los eventos relacionados cuando se quiere registrar un comando custom al juego.
-       * @param {mc.CustomCommand} commandData Los datos del comando a registrar
-       * @param {(origin: mc.CustomCommandOrigin, ...args: any[]) => mc.CustomCommandResult | undefined} callback Los eventos a ejecutar después de haber sido activado o usado el comando.
-       * @param {?Record<string, string[]>} [customEnums] (Opcional) Opciones o valores que se registran junto con el comando en caso de ser necesario. Por ej: para que aparezca "ha juegos" al momento de poner este comando, lo considere un valor rellenable automático.
-       * @author HaJuegos - 17-03-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * const commandData: mc.CustomCommand = {
-       *     name: 'ha:command_test',
-       *     description: 'Este es un comando de prueba',
-       *     permissionLevel: mc.CommandPermissionLevel.Admin
-       * };
-       *
-       * beforeEventsSimplified.createCustomCommand(commandData, ((args => {
-       *     const entity = args.sourceEntity as mc.Player;
-       *
-       *     console.warn(`El jugador ${entity.name} ha usado el comando custom.`);
-       * })));
-       * ```
-       */
-      createCustomCommand(commandData, callback, customEnums) {
-        this.onAddonStarts((args) => {
-          if (customEnums) {
-            for (const [enumName, enumValues] of Object.entries(customEnums)) {
-              args.customCommandRegistry.registerEnum(enumName, enumValues);
-            }
-          }
-          args.customCommandRegistry.registerCommand(commandData, callback);
-        });
-      }
-      /**
-       * Método auxiliar que registra una nueva dimensión custom en el mundo. Basado en su prefix.
-       * @param {string} prefixDimension Prefix de la dimensión en cuestión a crear.
-       * @returns {void}
-       * @author HaJuegos - 15-07-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * // Esto creará la nueva dimensión 'ha:backrooms'. Pero es una dimensión totalmente vacía. Debes crear todo a base de feature y feature rules.
-       * beforeEventsSimplified.createCustomDimension('ha:backrooms');
-       * ```
-       */
-      createCustomDimension(prefixDimension) {
-        this.onAddonStarts((args) => {
-          args.dimensionRegistry.registerCustomDimension(prefixDimension);
-        });
-      }
-    };
-    beforeEventsSimplified = new BeforeEventsSimplified();
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/worldToolsSimplifiedManager.js
-import * as mc3 from "@minecraft/server";
-var WorldToolsSimplified, worldToolsSimplified;
-var init_worldToolsSimplifiedManager = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/worldToolsSimplifiedManager.js"() {
-    init_eventsManager();
-    init_errorHandler();
-    WorldToolsSimplified = class {
-      /**
-       * Eventos que se inicializan cuando la clase es llamada o inicializada.
-       * @constructor
-       */
-      constructor() {
-        this.scriptEventManager = new BaseEventManager(mc3.system.afterEvents.scriptEventReceive, "ScriptEventSensor");
-      }
-      /**
-       * Método auxiliar que programa la ejecución de una lógica para el siguiente tick del juego. Ideal principalmente para los eventos before para saltarse la ejecución restringida.
-       * @param {() => void} callback Los eventos o lógica en cuestión a ejecutar.
-       * @returns {Promise<void>}
-       * @author HaJuegos - 15-03-2026
-       * @async Es un método asíncrono, principalmente para terminar el flujo después de que ocurra los eventos.
-       * @public
-       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
-       * @example
-       * ```ts
-       * beforeEventsSimplified.onUseItem((args) => {
-       *    const ply = args.source;
-       *    const item = args.itemStack;
-       *    const plyArmor = ply.getComponent(EntityComponentTypes.Equippable)
-       *
-       *    worldToolsSimplified.setRun(() => {
-       *        // Esto ya funciona porque pasa después de un tick y no hay restricciones.
-       *        plyArmor.setEquipment(EquipmentSlot.Offhand, item);
-       *    });
-       * });
-       * ```
-       */
-      async setRun(callback) {
-        return new Promise((resolve) => {
-          const registrationTrace = new Error().stack;
-          const currentRun = mc3.system.run(() => {
-            try {
-              callback();
-              mc3.system.clearRun(currentRun);
-              resolve();
-            } catch (e) {
-              CatLogHandler.handleError(e, "WorldsetRun", registrationTrace);
-              resolve();
-            }
-          });
-        });
-      }
-      /**
-       * Método auxiliar que establece una serie de eventos con un pequeño retraso determinado. Luego de terminar el retraso, elimina la tarea para no dejarlo en memoria.
-       * @param {() => void} callback Los eventos en cuestión a ejecutar.
-       * @param {number} ticksDelay Los tiempos en ticks que se tardará para ejecutarse.
-       * @returns {Promise<void>}
-       * @author HaJuegos - 13-03-2026
-       * @async Es un método asíncrono, debido a que se limpia después de la ejecución.
-       * @public
-       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * worldToolsSimplified.setDelay(() => {
-       *    console.warn('Este evento se ejecutará después de 5 segundos');
-       * } worldToolsSimplified.convertSecondsToTicks(5))
-       * ```
-       */
-      async setDelay(callback, ticksDelay) {
-        return new Promise((resolve) => {
-          const registrationTrace = new Error().stack;
-          const currentJob = mc3.system.runTimeout(() => {
-            try {
-              callback();
-              mc3.system.clearRun(currentJob);
-              resolve();
-            } catch (e) {
-              CatLogHandler.handleError(e, "worldSetDelay", registrationTrace);
-              resolve();
-            }
-          }, ticksDelay);
-        });
-      }
-      /**
-       * Método auxiliar que establece una serie de eventos en concreto que se mantendrán en loop.
-       * @param {() => void} callback Los eventos en concreto.
-       * @param {number} loopTicks El número en ticks que se repetirá este loop.
-       * @returns {number} Devuelve el ID de la memoria, del proceso loop creado.
-       * @author HaJuegos - 13-03-2026
-       * @public
-       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * worldToolsSimplified.setLoop(() => {
-       *    console.warn('Este evento se ejecutará cada 1 segundo');
-       * } worldToolsSimplified.convertSecondsToTicks(1))
-       * ```
-       */
-      setLoop(callback, loopTicks) {
-        const registrationTrace = new Error().stack;
-        return mc3.system.runInterval(() => {
-          try {
-            callback();
-          } catch (e) {
-            CatLogHandler.handleError(e, "worldSetLoop", registrationTrace);
-          }
-        }, loopTicks);
-      }
-      /**
-       * Método auxiliar que detiene un proceso looping creado previamente por medio de su ID generado en memoria.
-       * @param {number} runID ID del proceso generado.
-       * @author HaJuegos - 13-03-2026
-       * @public
-       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * // Se crea el evento primero, generado su ID en memoria.
-       * const idLoop = worldToolsSimplified.setLoop(() => {
-       *   console.warn('este evento se esta repitiendo cada 1 segundo');
-       * } worldToolsSimplified.convertSecondsToTicks(1))
-       *
-       * // Con el ID generado en memoria, lo usamos para detenerlo cuando queramos.
-       * worldToolsSimplified.stopLoop(idLoop);
-       * ```
-       */
-      stopLoop(runID) {
-        mc3.system.clearRun(runID);
-      }
-      /**
-       * Método auxiliar que envía un mensaje global al mundo en formato string o rawmessage.
-       * @public
-       * @param {string | mc.RawMessage | (string | mc.RawMessage)[]} message Mensaje o RawMessage en concreto a enviar.
-       * @author HaJuegos - 12-03-2026
-       * @example
-       * ```ts
-       * // Este es un mensaje simple
-       * worldToolsSimplified.sendMessageGlobal('hola soy un mensaje');
-       *
-       * // Este es un mensaje RawText
-       * worldToolsSimplified.sendMessageGlobal({ rawtext: 'chat.test.message' });
-       * ```
-       */
-      sendMessageGlobal(message) {
-        mc3.world.sendMessage(message);
-      }
-      /**
-       * Método auxiliar que maneja la lógica de los eventos cuando se ejecuta el comando scriptevent.
-       * @param {((args: mc.ScriptEventCommandMessageAfterEvent) => void)} callback La lógica del evento en concreto.
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @systemEvent Método que usa los eventos del módulo "system" herramientas auxiliares fuera de los eventos sensores de "world".
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * worldToolsSimplified.listenerScriptEvents((args) => {
-       *   console.warn(`Se ha ejecutado el comando /scriptevent con el ID ${args.id}`)
-       * });
-       * ```
-       */
-      listenerScriptEvents(callback) {
-        this.scriptEventManager.register(callback);
-      }
-      /**
-       * Método auxiliar que obtiene un objective de scoreboard, en caso de no encontrarlo, pues lo crea. Para devolver el mismo objectivo de forma simplificada.
-       * @param {string} idObj ID del objectivo a encontrar o crear en cuestión.
-       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo a colocar cuando se cree.
-       * @returns {(mc.ScoreboardObjective | undefined)} Devuelve el objectivo si todo salió correcto, sino será un error.
-       * @author HaJuegos - 31-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * // Esto obtiene y crea el objectivo en caso de no estar creado.
-       * const obj = worldToolsSimplified.getOrCreateScorebordObj('conteo', 'Conteo');
-       * ```
-       */
-      getOrCreateScorebordObj(idObj, nameDisplayObj) {
-        const registrationTrace = new Error().stack;
-        try {
-          const scoreboard = mc3.world.scoreboard;
-          let obj = scoreboard.getObjective(idObj);
-          if (!obj) {
-            obj = scoreboard.addObjective(idObj, nameDisplayObj);
-          }
-          return obj;
-        } catch (e) {
-          CatLogHandler.handleError(e, "getOrCreateObj", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Método auxiliar que obtiene el score de un jugador en concreto de un objective de scoreboard. En caso de que el objective no esté creado, se creará. De forma simplificada.
-       * @param {mc.Entity | mc.Player | string} targetEntity Target en concreto a obtener su score.
-       * @param {string} idObj ID del objectivo el concreto a obtener el score.
-       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo en caso de que el mismo no esté creado, a asignar.
-       * @returns {number} Devuelve el score total que tiene el jugador si todo esta bien, sino siempre será 0.
-       * @author HaJuegos - 31-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * // Esto crea el objective en caso de no estar creado y luego, obtiene el score que tiene el jugador, en este caso sería 0.
-       * const score = worldToolsSimplified.getPlyScoreInObj(ply, 'conteo', 'Conteo');
-       * ```
-       */
-      getScoreInObj(targetEntity, idObj, nameDisplayObj) {
-        const registrationTrace = new Error().stack;
-        try {
-          const scoreboard = mc3.world.scoreboard;
-          let obj = scoreboard.getObjective(idObj);
-          if (!obj) {
-            obj = scoreboard.addObjective(idObj, nameDisplayObj);
-          }
-          if (!obj.hasParticipant(targetEntity)) {
-            return 0;
-          }
-          const score = obj.getScore(targetEntity) ?? 0;
-          return score;
-        } catch (e) {
-          CatLogHandler.handleError(e, "getPlyScore", registrationTrace);
-          return 0;
-        }
-      }
-      /**
-       * Método auxiliar que modifica el score de un jugador en concreto en un objectivo. En caso de que no esté creado el objectivo, se creará automáticamente. De forma simplificada.
-       * @param {mc.Entity | mc.Player | string} targetEntity Target en concreto a modificar.
-       * @param {string} idObj ID del objectivo en concreto.
-       * @param {('set' | 'add')} changeMode Método específico a modificar del jugador. En caso de set, es que sería un valor no acumulable. Por ej: si antes tenía uno y se establece 2, pues será 2 sin más; Caso contrario con add, que es acumulativo y sirve fórmulas negativas. Por ej: Misma situación, donde tienes 1 y adicionas 1 más, pues dará 2.
-       * @param {number} newScore El nuevo valor a añadir o cambiar.
-       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo en caso de no estar creado.
-       * @returns {(number | undefined)} El nuevo score cambiado del jugador si todo sale correcto, sino será un error.
-       * @author HaJuegos - 31-03-2026
-       * @public
-       * @example
-       * ```ts
-       * // Este método realizará lo siguiente: En caso de que conteo no exista como objectivo, lo crea, luego, establece al jugador en concreto 1 en el objectivo y por último, devuelve dicho valor modificado.
-       * const newScore = worldToolsSimplified.changePlyScoreInObj(player, 'conteo', 'set', 1, 'Conteo');
-       * ```
-       */
-      changeScoreInObj(targetEntity, idObj, changeMode, newScore, nameDisplayObj) {
-        const registrationTrace = new Error().stack;
-        try {
-          const scoreboard = mc3.world.scoreboard;
-          let obj = scoreboard.getObjective(idObj);
-          if (!obj) {
-            obj = scoreboard.addObjective(idObj, nameDisplayObj);
-          }
-          if (changeMode == "set") {
-            obj.setScore(targetEntity, newScore);
-          } else {
-            obj.addScore(targetEntity, newScore);
-          }
-          return obj.getScore(targetEntity) ?? 0;
-        } catch (e) {
-          CatLogHandler.handleError(e, "changePlyScore", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Método auxiliar que muestra un objective creado en concreto, en caso de no estar creado, lo hará; A una zona de la pantalla, ya sea como sidebar o list de forma simplificada.
-       * @param {string} idObj ID del objective en cuestión a obtener o crear.
-       * @param {mc.DisplaySlotId} displaySlot Slot donde se establecerá el objectivo.
-       * @param {?string} [nameDisplayObj] (Opcional) Nombre del objectivo que tendrá en caso de que no esté creado.
-       * @param {?mc.ObjectiveSortOrder} [order] (Opcional) Orden del mismo objectivo.
-       * @author HaJuegos - 31-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * // Esto mostrará a conteo en el sidebar de la pantalla de orden descendente. En caso de no estar creado, lo crea primero.
-       * worldToolsSimplified.setObjInDisplay('conteo', mc.DisplaySlotId.Sidebar, 'Conteo', mc.ObjectiveSortOrder.Descending);
-       * ```
-       */
-      setObjInDisplay(idObj, displaySlot, nameDisplayObj, order) {
-        const registrationTrace = new Error().stack;
-        try {
-          const scoreboard = mc3.world.scoreboard;
-          let obj = scoreboard.getObjective(idObj);
-          if (!obj) {
-            obj = scoreboard.addObjective(idObj, nameDisplayObj);
-          }
-          scoreboard.setObjectiveAtDisplaySlot(displaySlot, { objective: obj, sortOrder: order });
-        } catch (e) {
-          CatLogHandler.handleError(e, "setObjInDisplay", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que limpia los objectives asignados a una parte de la pantallas de forma simplificada.
-       * @param {mc.DisplaySlotId} displaySlot El slot a limpiar en cuestión.
-       * @author HaJuegos - 31-03-2026
-       * @public
-       * @afterEvent Método que detecta el evento después de que suceda. Obteniendo la información sin permitir modificarla en su mayoría.
-       * @example
-       * ```ts
-       * // Se quita al objective que se mostraba en sidebar.
-       * worldToolsSimplified.removeDisplaySlot(mc.DisplaySlotId.Sidebar);
-       * ```
-       */
-      removeDisplaySlot(displaySlot) {
-        const registrationTrace = new Error().stack;
-        try {
-          const scoreboard = mc3.world.scoreboard;
-          scoreboard.clearObjectiveAtDisplaySlot(displaySlot);
-        } catch (e) {
-          CatLogHandler.handleError(e, "removeDisplayObj", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que convierte segundos a ticks de forma simple.
-       * @public
-       * @param {number} seconds Los segundos a convertir.
-       * @returns {number} Los ticks convertidos.
-       * @author HaJuegos - 12-03-2026
-       * @example
-       * ```ts
-       * // 15 segundos son 300 ticks (20 ticks por segundo)
-       * const ticks = worldToolsSimplified.convertSecondsToTicks(15); // 300
-       * ```
-       */
-      convertSecondsToTicks(seconds) {
-        return mc3.TicksPerSecond * seconds;
-      }
-      /**
-       * Método auxiliar que convierte ticks a segundos de forma simple.
-       * @public
-       * @param {number} ticks Los ticks a convertir.
-       * @returns {number} Los segundos convertidos.
-       * @author HaJuegos - 12-03-2026
-       * @example
-       * ```ts
-       * // 300 ticks son 15 segundos (20 ticks por segundo)
-       * const seconds = worldToolsSimplified.convertTicksToSeconds(300); // 15
-       * ```
-       */
-      convertTicksToSeconds(ticks) {
-        return ticks / mc3.TicksPerSecond;
-      }
-      /**
-       * Método auxiliar que convierte un color hexadecimal a RGB.
-       * @param {string} hexcolor El color hexadecimal (ej. "#00000F").
-       * @returns {mc.RGB} El objeto RGB correspondiente.
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @example
-       * ```ts
-       * const rgb = worldToolsSimplified.convertHexToRGB("#FF0000"); // { red: 255, green: 0, blue: 0 }
-       * ```
-       */
-      convertHexToRGB(hexcolor) {
-        const hex = hexcolor.replace("#", "");
-        if (hex.length != 6) {
-          throw new Error("El color hexadecimal no debe ser mas de 6 digitos");
-        }
-        const r = parseInt(hex.substr(0, 2), 16);
-        const g = parseInt(hex.substr(2, 2), 16);
-        const b = parseInt(hex.substr(4, 2), 16);
-        return { red: r, green: g, blue: b };
-      }
-      /**
-       * Método auxiliar que convierte un color hexadecimal a RGBA.
-       * @param {string} hexcolor El color hexadecimal (ej. "#00000FFF" para 8 dígitos, o "#00000F" asumiendo a=255).
-       * @returns {mc.RGBA} El objeto RGBA correspondiente.
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @example
-       * ```ts
-       * const rgba = worldToolsSimplified.convertHexToRGBA("#FF0000FF"); // { red: 255, green: 0, blue: 0, alpha: 255 }
-       * const rgba2 = worldToolsSimplified.convertHexToRGBA("#FF0000"); // { red: 255, green: 0, blue: 0, alpha: 255 }
-       * ```
-       */
-      convertHexToRGBA(hexcolor) {
-        const hex = hexcolor.replace("#", "");
-        let r, g, b, a;
-        if (hex.length == 6) {
-          r = parseInt(hex.substr(0, 2), 16);
-          g = parseInt(hex.substr(2, 2), 16);
-          b = parseInt(hex.substr(4, 2), 16);
-          a = 255;
-        } else if (hex.length == 8) {
-          r = parseInt(hex.substr(0, 2), 16);
-          g = parseInt(hex.substr(2, 2), 16);
-          b = parseInt(hex.substr(4, 2), 16);
-          a = parseInt(hex.substr(6, 2), 16);
-        } else {
-          throw new Error("El color hexadecimal alpha debe ser 6 o 8 digitos");
-        }
-        return { red: r, green: g, blue: b, alpha: a };
-      }
-      /**
-       * Método auxiliar que obtiene los datos de una propiedad dinámica en concreto guardado en el mundo.
-       * @param {string} idProperty ID de la propiedad en concreto.
-       * @returns {(string | number | boolean | mc.Vector3 | undefined)} Los datos guardados en la propiedad, en caso de no estar creada, será undefined.
-       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * worldToolsSimplified.getWorldDynamicProperty('ha:property'); // "string" | undefined.
-       * ```
-       */
-      getWorldDynamicProperty(idProperty) {
-        return mc3.world.getDynamicProperty(idProperty);
-      }
-      /**
-       * Método auxiliar que obtiene todos los IDs de propiedades dinámicas guardadas en el mundo.
-       * @returns {string[]} El array de todos los IDs registrados, en caso de no haber ninguno, estará vacío.
-       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * worldToolsSimplified.getAllWorldDynamicPropertiesIDs(); // ['ha:test','ha:test2','ha:test3'].
-       * ```
-       */
-      getAllWorldDynamicPropertiesIDs() {
-        return mc3.world.getDynamicPropertyIds();
-      }
-      /**
-       * Método auxiliar que obtiene los datos de una propiedad dinámica guardada en una entidad en concreto.
-       * @param {(mc.Entity | mc.Player)} targetEntity Entidad en cuestión a consultar.
-       * @param {string} idProperty ID en cuestión de la propiedad a consultar.
-       * @returns {(string | number | boolean | mc.Vector3 | undefined)} Devuelve el tipo de dato guardado en la propiedad, en caso de no existir, será undefined.
-       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * worldToolsSimplified.getEntityDynamicProperty(entity, 'ha:test'); // "string" | undefined.
-       * ```
-       */
-      getEntityDynamicProperty(targetEntity, idProperty) {
-        return targetEntity.getDynamicProperty(idProperty);
-      }
-      /**
-       * Método auxiliar que obtiene todos los IDs de propiedades dinámicas en una entidad en concreto.
-       * @param {(mc.Entity | mc.Player)} targetEntity Entidad en concreto a consultar.
-       * @returns {string[]} Devuelve un Array con todos los IDs, en caso de no haber ninguno, será vacío.
-       * @remarks Este valor depende del UUID de tu add-on. Es decir, si hay dos add-ons en el mundo y los dos deciden guardar la misma propiedad, será diferente en ambos. Por ej: Add-on1 guarda la propiedad y Add-on2 lo consulta, será undefined porque solo existe en el Add-on1.
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * worldToolsSimplified.getEntityDynamicPropertiesIDs(entity); // ['ha:test1','ha:test2','ha:test3']
-       * ```
-       */
-      getEntityDynamicPropertiesIDs(targetEntity) {
-        return targetEntity.getDynamicPropertyIds();
-      }
-      /**
-       * Método auxiliar que activa globalmente música para todos los jugadores.
-       * @param {string} idMusic ID de la música a reproducir.
-       * @param {?mc.MusicOptions} [options] (Opcional) Las condiciones para hacer sonar la música.
-       * @returns {void}
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * worldToolsSimplified.startGlobalMusic('music.pigstep');
-       * ```
-       */
-      startGlobalMusic(idMusic, options) {
-        const registrationTrace = new Error().stack;
-        try {
-          mc3.world.playMusic(idMusic, options);
-        } catch (e) {
-          CatLogHandler.handleError(e, "startGlobalMusic", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que detiene la música global del mundo.
-       * @returns {void}
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * worldToolsSimplified.stopGlobalMusic();
-       * ```
-       */
-      stopGlobalMusic() {
-        const registrationTrace = new Error().stack;
-        try {
-          mc3.world.stopMusic();
-        } catch (e) {
-          CatLogHandler.handleError(e, "stopGlobalMusic", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que obtiene o crea un area persistente en el mundo. Un /tickingarea, basado en las configuraciones de la misma, este es asíncrono debido a que debe esperar la carga de chunks requeridas y los cálculos que hace el juego para crear el radio.
-       * @param {string} idArea ID del area a crear o obtener.
-       * @param {mc.TickingAreaOptions} options Parametros para la creación del area en caso de no existir.
-       * @returns {Promise<mc.TickingArea | undefined>} Si todo sale bien, devuelve el area correctamente en caso de modificarlo, sino, será undefined.
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @async
-       * @example
-       * ```ts
-       * // Esto crea una area persistente en el mundo y si todo sale bien, devuelve el tipo para modificarlo. En caso de ya existir, pues no se crea.
-       * worldToolsSimplified.getOrCreateTickingArea('ha:area_persistente', {
-       *     dimension: Dimension,
-       *     to: { x: 0, y: 0, z: 0 },
-       *     from: { x: 0, y: 10, z: -10 }
-       * });
-       * ```
-       */
-      async getOrCreateTickingArea(idArea, options) {
-        const registrationTrace = new Error().stack;
-        try {
-          let area = mc3.world.tickingAreaManager.getTickingArea(idArea);
-          if (!area) {
-            await mc3.world.tickingAreaManager.createTickingArea(idArea, options);
-            area = mc3.world.tickingAreaManager.getTickingArea(idArea);
-          }
-          return area;
-        } catch (e) {
-          CatLogHandler.handleError(e, "getOrCreateTickingArea", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Método auxiliar que elimina un area persistente del mundo creado previamente.
-       * @param {(string | mc.TickingArea)} idArea Area en concreto a eliminar o tambien su ID.
-       * @returns {void}
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * // Esto elimina dicha area, si existe, sino, pues no hace nada.
-       * worldToolsSimplified.deletedTickingArea('ha:area_persistente');
-       * ```
-       */
-      deletedTickingArea(idArea) {
-        const registrationTrace = new Error().stack;
-        try {
-          mc3.world.tickingAreaManager.removeTickingArea(idArea);
-        } catch (e) {
-          CatLogHandler.handleError(e, "deletedTickingArea", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que permite la creación de textos flotantes custom en el mundo, con mucha personalización.
-       * @param {CustomFloatingTextParams} params Todos los parámetros requeridos para la creación de un texto flotante.
-       * @returns {mc.TextPrimitive} Si todo sale bien, devuelve el mismo texto flotante previamente creado para su modificación.
-       * @author HaJuegos - 18-07-2026
-       * @public
-       * @example
-       * ```ts
-       * // Esto crea un texto flotante llamado "Hola soy un texto".
-       * const floatText: CustomFloatingTextParams = {
-       *     text: { rawtext: [{ text: 'Hola soy un texto' }] },
-       *     dimension: Dimension,
-       *     alwaysVisible: true,  // Siempre será visible para todos a través de bloques.
-       *     location: { x: 0, y: 0, z: 0 },
-       *     rotation: { x: 0, y: 0, z: 0 },
-       *     duration: 1000,
-       *     scale: 1
-       * };
-       *
-       * worldToolsSimplified.setAndGetFloatingText(floatText);
-       * ```
-       */
-      setAndGetFloatingText(params) {
-        const registrationTrace = new Error().stack;
-        try {
-          const floatTxt = new mc3.TextPrimitive(params.location, params.text);
-          floatTxt.depthTest = !params.alwaysVisible;
-          if (params.attachedTo) {
-            floatTxt.attachedTo = params.attachedTo;
-          }
-          if (params.scale != void 0) {
-            floatTxt.scale = params.scale;
-          }
-          if (params.duration != void 0) {
-            floatTxt.timeLeft = params.duration;
-          }
-          if (params.rotation) {
-            floatTxt.rotation = params.rotation;
-            floatTxt.useRotation = true;
-          }
-          if (params.toPlys) {
-            floatTxt.visibleTo = Array.isArray(params.toPlys) ? params.toPlys : [params.toPlys];
-          }
-          if (params.color) {
-            const finalColor = typeof params.color == "string" ? worldToolsSimplified.convertHexToRGBA("finalColor") : params.color;
-            floatTxt.color = finalColor;
-          }
-          if (params.backGroundColor) {
-            const finalColor = typeof params.backGroundColor == "string" ? worldToolsSimplified.convertHexToRGBA("finalColor") : params.backGroundColor;
-            floatTxt.backgroundColorOverride = finalColor;
-          }
-          mc3.world.primitiveShapesManager.addText(floatTxt, params.dimension);
-          return floatTxt;
-        } catch (e) {
-          CatLogHandler.handleError(e, "setAndGetFloatingText", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Método auxiliar que obtiene las dimensiones vanillas o custom por el método world.
-       * @param {(vanilla.MinecraftDimensionTypes | string)} dimensionID El ID vanilla o custom en cuestión a obtener de la dimensión.
-       * @returns {(mc.Dimension | undefined)} Si todo sale bien, devuelve la dimensión en concreto, sino, será undefined.
-       * @public
-       * @author HaJuegos - 06-08-2026
-       * @example
-       * ```ts
-       * // Todas las formas de obtener dimensiones.
-       * const over = worldToolsSimplified.getDimension(vanilla.MinecraftDimensionTypes.Overworld);
-       * const end = worldToolsSimplified.getDimension(vanilla.MinecraftDimensionTypes.TheEnd);
-       * const customDime = worldToolsSimplified.getDimension('ha:custom_dimension');
-       * ```
-       */
-      getDimension(dimensionID) {
-        const registrationTrace = new Error().stack;
-        try {
-          return mc3.world.getDimension(dimensionID);
-        } catch (e) {
-          CatLogHandler.handleError(e, "getDimension", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Método auxiliar que obtiene todos los jugadores en el mundo independientemente de las dimensiones.
-       * @returns {(mc.Player[] | undefined)} Si todo sale bien, devuelve de array de todos los jugadores, sino, será undefined.
-       * @public
-       * @author HaJuegos - 06-08-2026
-       * @example
-       * ```ts
-       * // Obtiene todos los jugadores del mundo.
-       * worldToolsSimplified.getAllPlysGlobal();
-       * ```
-       */
-      getAllPlysGlobal() {
-        const registrationTrace = new Error().stack;
-        try {
-          return mc3.world.getAllPlayers();
-        } catch (e) {
-          CatLogHandler.handleError(e, "getAllPlys", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Método auxiliar que envía un evento script globalmente por medio de, scripts vaya.
-       * @param {string} idScript ID del script en concreto a enviar.
-       * @param {?string} [msg] (Opcional) Mensaje del script en concreto a enviar como argumento adicional.
-       * @returns {void}
-       * @public
-       * @author HaJuegos - 06-08-2026
-       * @example
-       * ```ts
-       * // Envía un script de prueba al addon de forma global.
-       * worldToolsSimplified.sendScriptEventGlobal('ha:test_script');
-       * ```
-       */
-      sendScriptEventGlobal(idScript, msg) {
-        const registrationTrace = new Error().stack;
-        try {
-          mc3.system.sendScriptEvent(idScript, msg ? msg : "");
-        } catch (e) {
-          CatLogHandler.handleError(e, "sendScriptEventGlobal", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Metodo auxiliar que cambia el estado de las trampas en el mundo. Pasando de false o true dependiendo el argumento asignado.
-       * @param {boolean} state El nuevo estado que cambiara la opcion.
-       * @returns {void}
-       * @author HaJuegos - 30-08-2026
-       * @public
-       * @example
-       * ```ts
-       * // Ahora en el mundo si estara permitido las trampas de forzada.
-       * worldToolsSimplified.changeWorldCheats(true);
-       * ```
-       */
-      changeWorldCheats(state) {
-        const registrationTrace = new Error().stack;
-        try {
-          mc3.world.allowCheats = state;
-        } catch (e) {
-          CatLogHandler.handleError(e, "changeWorldCheats", registrationTrace);
-          return;
-        }
-      }
-      /**
-       * Metodo auxiliar que cambia el estado de la dificultad en el mundo, dependiendo el argumento asignado.
-       * @param {boolean} state El nuevo estado que cambiara la opcion.
-       * @returns {void}
-       * @author HaJuegos - 30-08-2026
-       * @public
-       * @example
-       * ```ts
-       * // Ahora en el mundo estara en dificil de forma forzada.
-       * worldToolsSimplified.changeWorldDifficulty(mc.Difficulty.Hard);
-       * ```
-       */
-      changeWorldDifficulty(state) {
-        const registrationTrace = new Error().stack;
-        try {
-          mc3.world.setDifficulty(state);
-        } catch (e) {
-          CatLogHandler.handleError(e, "changeWorldDifficulty", registrationTrace);
-          return;
-        }
-      }
-    };
-    worldToolsSimplified = new WorldToolsSimplified();
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/debugToolsSimplified.js
-import * as mc4 from "@minecraft/server";
-import * as debug from "@minecraft/debug-utilities";
-var DebugToolsSimplified, debugToolsSimplified;
-var init_debugToolsSimplified = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/debugToolsSimplified.js"() {
-    init_worldToolsSimplifiedManager();
-    DebugToolsSimplified = class {
-      /**
-       * Eventos iniciales de la clase cuando es llamada o inicializada.
-       * @constructor
-       */
-      constructor() {
-        this.playerHitboxLoops = /* @__PURE__ */ new Map();
-        this.playerActiveBoxes = /* @__PURE__ */ new Map();
-      }
-      /**
-       * Método auxiliar que activa las hitboxes de todas las entidades cercanas en un radio de 50 bloques a un jugador en concreto.
-       * @param {mc.Player} ply Jugador en concreto a considerar.
-       * @param {number} [maxRadiusHitboxs=50] (Opcional) El radio máximo a considerar para visualizar las hitboxes. Por defecto será 50.
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @example
-       * ```ts
-       * const plys = world.getAllPlayers();
-       *
-       * debugToolsSimplified.showHitboxes(plys[0]); // Solo este jugador podrá ver las hitboxes.
-       * ```
-       */
-      showHitboxes(ply, maxRadiusHitboxs = 50) {
-        const plyId = ply.id;
-        if (this.playerHitboxLoops.has(plyId)) {
-          this.stopHitboxes(ply);
-        }
-        const activeBoxes = /* @__PURE__ */ new Map();
-        this.playerActiveBoxes.set(plyId, activeBoxes);
-        const loopId = worldToolsSimplified.setLoop(() => {
-          if (!ply.isValid) {
-            this.stopHitboxes(ply);
-            return;
-          }
-          const nearbyMobs = ply.dimension.getEntities({
-            location: ply.location,
-            maxDistance: maxRadiusHitboxs
-          }).slice(0, 30);
-          for (const mob of nearbyMobs) {
-            if (!activeBoxes.has(mob) && mob.isValid) {
-              const bb = mob.getAABB();
-              const box = new debug.DebugBox({ x: 0, y: 0, z: 0 });
-              box.bound = { x: bb.extent.x * 2, y: bb.extent.y * 2, z: bb.extent.z * 2 };
-              box.scale = 1;
-              box.color = { red: 255, green: 255, blue: 255, alpha: 1 };
-              box.visibleTo = [ply];
-              box.attachedTo = mob;
-              box.setLocation({ x: 0, y: bb.extent.y, z: 0 });
-              debug.debugDrawer.addShape(box, ply.dimension);
-              activeBoxes.set(mob, box);
-            }
-          }
-          for (const [mob, box] of activeBoxes) {
-            if (!mob.isValid) {
-              box.remove();
-              activeBoxes.delete(mob);
-              continue;
-            }
-            const dx = mob.location.x - ply.location.x;
-            const dy = mob.location.y - ply.location.y;
-            const dz = mob.location.z - ply.location.z;
-            if (Math.sqrt(dx * dx + dy * dy + dz * dz) > maxRadiusHitboxs) {
-              box.remove();
-              activeBoxes.delete(mob);
-              continue;
-            }
-            const bb = mob.getAABB();
-            box.bound = { x: bb.extent.x * 2, y: bb.extent.y * 2, z: bb.extent.z * 2 };
-            box.setLocation({ x: 0, y: bb.extent.y, z: 0 });
-          }
-        }, worldToolsSimplified.convertSecondsToTicks(1));
-        this.playerHitboxLoops.set(plyId, loopId);
-      }
-      /**
-       * Método auxiliar que desactiva las hitboxes creadas en el mundo para todos los jugadores.
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @example
-       * ```ts
-       * debugToolsSimplified.stopHitBoxes(); // Quita TODAS las hitboxes del mundo.
-       * debugToolsSimplified.stopHitBoxes(ply); // Quita todas las hitboxes de ese jugador en concreto.
-       * ```
-       */
-      stopHitboxes(ply) {
-        if (ply) {
-          const plyId = ply.id;
-          const loopId = this.playerHitboxLoops.get(plyId);
-          if (loopId != void 0) {
-            worldToolsSimplified.stopLoop(loopId);
-            this.playerHitboxLoops.delete(plyId);
-          }
-          const activeBoxes = this.playerActiveBoxes.get(plyId);
-          if (activeBoxes) {
-            for (const box of activeBoxes.values()) {
-              box.remove();
-            }
-            this.playerActiveBoxes.delete(plyId);
-          }
-        } else {
-          for (const loopId of this.playerHitboxLoops.values()) {
-            worldToolsSimplified.stopLoop(loopId);
-          }
-          this.playerHitboxLoops.clear();
-          for (const activeBoxes of this.playerActiveBoxes.values()) {
-            for (const box of activeBoxes.values()) {
-              box.remove();
-            }
-          }
-          this.playerActiveBoxes.clear();
-          debug.debugDrawer.removeAll();
-        }
-      }
-      /**
-       * Método que altera el estado de activo o desactivado del watchDogTerminate, en caso de lag spikes con scripts, para permitir el cierre o no del mundo o servidor cuando pase. Esto es solo recomendable usarlo en testeos, no se recomienda desactivarlo en mundos/servidores casuales o normales.
-       * @param {boolean} newState El estado próximo a cambiar.
-       * @author HaJuegos - 14-03-2026
-       * @public
-       * @example
-       * ```ts
-       * debugToolsSimplified.watchDogState(false) // ya no habrá cierre por lag spikes o problemas con scripts
-       * ```
-       */
-      watchDogState(newState) {
-        mc4.system.beforeEvents.watchdogTerminate.subscribe((arg) => {
-          arg.cancel = newState;
-        });
-      }
-    };
-    debugToolsSimplified = new DebugToolsSimplified();
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/fakePlysManagerSimplififed.js
-import * as gametest from "@minecraft/server-gametest";
-var FakePlysManager, fakePlysSimplified;
-var init_fakePlysManagerSimplififed = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/fakePlysManagerSimplififed.js"() {
-    init_errorHandler();
-    init_worldToolsSimplifiedManager();
-    FakePlysManager = class {
-      /**
-       * Eventos iniciales de la clase cuando es inicializada o llamada.
-       * @constructor
-       */
-      constructor() {
-        this.testCxt = void 0;
-        this.isPlaced = false;
-      }
-      /**
-       * Método auxiliar que registra primero el contexto necesario de los gametest para poder generar los simulated players.
-       * @returns {void}
-       * @author HaJuegos - 21-07-2026
-       * @private
-       */
-      registerMainGametest() {
-        const registrationTrace = new Error().stack;
-        gametest.register("ha", "fakeplys", (args) => {
-          try {
-            this.testCxt = args;
-          } catch (e) {
-            CatLogHandler.handleError(e, "createFakePly", registrationTrace);
-          }
-        }).maxTicks(worldToolsSimplified.convertSecondsToTicks(99999)).structureName("ha:void");
-      }
-      /**
-       * Método auxiliar que crea un nuevo tipo de jugador falso para métodos de pruebas.
-       * @param {mc.Dimension} dimension Dimensión donde se generará el jugador de pruebas.
-       * @param {string} namePly Nombre a asignar al jugador de pruebas.
-       * @param {mc.GameMode} gamemodePly El modo de juego que tendrá el jugador de pruebas.
-       * @param {?mc.Vector3} [defaultSpawnLocation] (Opcional) Coordenadas donde aparecerá el jugador de pruebas. Por defecto, irá a un jugador aleatorio
-       * @returns {Promise<gametest.SimulatedPlayer | undefined>} Los datos del jugador falso generado en caso de que todo salga bien, sino será undefined.
-       * @author HaJuegos - 13-03-2026
-       * @public
-       * @async Método asíncrono, por lo que este método necesita una ejecución principal y esperar esta misma para devolver el resultado final.
-       * @gametestEvent Es un método gametest, usando estructuras de pruebas por medio del comando /gametest run.
-       * @example
-       * ```ts
-       * // Esto genera un jugador de pruebas con sus respectivos datos para usar.
-       * const fakePly = await fakePlysSimplified.createFakePly('Jugador Prueba', Dimension, mc.GameMode.Survival);
-       * ```
-       */
-      async createFakePly(namePly, dimension, gamemodePly, defaultSpawnLocation) {
-        const registrationTrace = new Error().stack;
-        try {
-          this.registerMainGametest();
-          if (!this.isPlaced) {
-            dimension.runCommand(`gametest run ha:fakeplys`);
-            this.isPlaced = true;
-          }
-          return await new Promise((resolve, reject) => {
-            worldToolsSimplified.setDelay(() => {
-              try {
-                if (!this.testCxt) {
-                  throw new Error("No se pudo generar el jugador falso. No se cre\xF3 previamente el ambiente necesario para poderlo generar. Vuelve a intentarlo nuevamente. \xBFTienes guardado en tus estructuras el archivo 'void'?");
-                }
-                const fakePly = this.testCxt.spawnSimulatedPlayer({ x: 0, y: 1, z: 0 }, namePly, gamemodePly);
-                if (defaultSpawnLocation) {
-                  fakePly.tryTeleport(defaultSpawnLocation);
-                } else {
-                  fakePly.runCommand(`tp @r[name=!"${namePly}"]`);
-                }
-                resolve(fakePly);
-              } catch (e) {
-                reject(e);
-              }
-            }, worldToolsSimplified.convertSecondsToTicks(1));
-          });
-        } catch (e) {
-          CatLogHandler.handleError(e, "createFakePly", registrationTrace);
-          return;
-        }
-      }
-    };
-    fakePlysSimplified = new FakePlysManager();
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/customToolsManager.js
-import * as mc5 from "@minecraft/server";
-import * as ui from "@minecraft/server-ui";
-var CustomEventsSimplified, customEventsManager;
-var init_customToolsManager = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/events/customToolsManager.js"() {
-    init_errorHandler();
-    init_beforeEventsSimplifiedManager();
-    init_worldToolsSimplifiedManager();
-    CustomEventsSimplified = class {
-      /**
-       * Eventos principales de la clase cuando es llamada o inicializada.
-       * @constructor
-       */
-      constructor() {
-        this.activePlys = /* @__PURE__ */ new Map();
-      }
-      /**
-       * Método auxiliar que simplifica la lógica de la creación de un formulario UI custom en cuestión.
-       * @param {CustomFormParams} formParams Los parámetros del formulario en concreto necesarios para crear el formulario.
-       * @returns {Promise<ui.ActionFormData | void>} Se devuelve el mismo formulario creado en caso de que todo esté bien.
-       * @author HaJuegos - 16-04-2026
-       * @async Este método es asíncrono debido a las acciones que puede realizar el usuario cuando se muestre o no el formulario. Principalmente para los eventos.
-       * @public
-       * @example
-       * ```ts
-       * // Esto crea el formulario y luego lo muestra al jugador. Y al momento de abrir el formulario en el jugador, se manda un log.
-       * const form = this.createCustomClassicFormUI(
-       *      {
-       *          titleForm: 'Formulario de Prueba',
-       *          showPly: {
-       *              targetPly: player,
-       *              onShow: (ply) => {
-       *                  console.log(`${ply.name} abrió el formulario.`);
-       *              }
-       *          }
-       *      }
-       *  );
-       * ```
-       */
-      async createCustomClassicFormUI(formParams) {
-        const registrationTrace = new Error().stack;
-        try {
-          const baseForm = new ui.ActionFormData().title(formParams.titleForm);
-          const buttonList = formParams.buttonsForm ? Array.isArray(formParams.buttonsForm) ? formParams.buttonsForm : [formParams.buttonsForm] : [];
-          if (formParams.headerText) {
-            baseForm.header(formParams.headerText);
-          }
-          if (formParams.bodyText) {
-            baseForm.body(formParams.bodyText);
-          }
-          if (formParams.labelText) {
-            baseForm.label(formParams.labelText);
-          }
-          buttonList.forEach((button) => {
-            baseForm.button(button.buttomText, button.iconButtomUI);
-          });
-          if (formParams.showPly) {
-            const targetInfo = formParams.showPly;
-            const ply = targetInfo.targetPly;
-            if (targetInfo.onCreate) {
-              targetInfo.onCreate(ply);
-            }
-            try {
-              const action = await baseForm.show(ply);
-              if (action.canceled) {
-                if (targetInfo.onClose) {
-                  targetInfo.onClose(ply, action.cancelationReason);
-                }
-              } else {
-                if (targetInfo.onClickBtn && action.selection != void 0) {
-                  targetInfo.onClickBtn(ply, action.selection);
-                }
-              }
-            } catch (e) {
-              if (targetInfo.onErrForm) {
-                targetInfo.onErrForm(ply, ui.FormCancelationReason.UserBusy);
-              }
-            }
-          }
-          return baseForm;
-        } catch (e) {
-          CatLogHandler.handleError(e, "createCustomClassicFormUI", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que simplifica la lógica de los fast items, cuando usas tu item con tu tecla de interacción, este cambiará a tu mano secundaria.
-       * @param {(mc.ItemStack[] | string[])} listOfItems La lista de items a validar para este sistema.
-       * @returns {void}
-       * @author HaJuegos - 15-03-2026
-       * @version 2 Cambio de obtención de items permitidos para hacerlo dinámico si es requerido.
-       * @public
-       * @example
-       * ```ts
-       * customEventsManager.fastItemsSystem(() => ['totem']); // Ahora el totem es considerado un fast item para cambiar a la mano secundaria con un click.
-       * ```
-       */
-      fastItemsSystem(listOfItems) {
-        beforeEventsSimplified.onUseItem((args) => {
-          const ply = args.source;
-          const item = args.itemStack;
-          const currentSlot = ply.selectedSlotIndex;
-          const currentList = listOfItems();
-          const isItemValid = currentList.some((listItem) => {
-            if (typeof listItem == "string") {
-              return item.typeId.includes(listItem);
-            } else {
-              return item.typeId == listItem.typeId;
-            }
-          });
-          if (isItemValid) {
-            args.cancel = true;
-            worldToolsSimplified.setRun(() => {
-              const plyInv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
-              const plyArmor = ply.getComponent(mc5.EntityComponentTypes.Equippable);
-              const itemCurrentlyInSlot = plyInv.getItem(currentSlot);
-              if (!itemCurrentlyInSlot || itemCurrentlyInSlot.typeId != item.typeId) {
-                return;
-              }
-              const itemOffhand = plyArmor.getEquipment(mc5.EquipmentSlot.Offhand);
-              if (itemOffhand && itemOffhand.typeId == itemCurrentlyInSlot.typeId) {
-                return;
-              }
-              if (itemOffhand) {
-                plyArmor.setEquipment(mc5.EquipmentSlot.Offhand, itemCurrentlyInSlot);
-                plyInv.setItem(currentSlot, itemOffhand);
-              } else {
-                plyArmor.setEquipment(mc5.EquipmentSlot.Offhand, itemCurrentlyInSlot);
-                plyInv.setItem(currentSlot, void 0);
-              }
-              ply.playSound("armor.equip_generic");
-            });
-          }
-        });
-      }
-      /**
-       * Método auxiliar que simplifica la lógica de dañar un item o reducir un stack de items en un inventario de un jugador en concreto, dependiendo el caso.
-       * @param {ManualDamageItemParams} params Los parámetros necesarios para este método.
-       * @author HaJuegos - 17-03-2026
-       * @public
-       * @example
-       * ```ts
-       * // Esto hará que un item en la mano reduzca su stock o sea dañado bajando su durabilidad. Dependiendo el tipo de item.
-       * customEventsManager.manualDamageItem({ ply: player, item: item });
-       * ```
-       */
-      manualDamageItem(params) {
-        const registrationTrace = new Error().stack;
-        try {
-          const { ply, item, specificInv = "inv", specificAmount = 1, specificDamageDurability = 1, specificSlot = ply.selectedSlotIndex } = params;
-          const actualGm = ply.getGameMode();
-          if (actualGm != mc5.GameMode.Adventure && actualGm != mc5.GameMode.Survival)
-            return;
-          const newItem = item.clone();
-          let broke = false;
-          if (!item.isStackable) {
-            const durability = newItem.getComponent(mc5.ItemComponentTypes.Durability);
-            if (durability) {
-              const finalDurability = durability.damage + specificDamageDurability;
-              if (finalDurability >= durability.maxDurability) {
-                broke = true;
-                ply.playSound("random.break");
-              } else {
-                durability.damage = finalDurability;
-              }
-            }
-          } else {
-            if (newItem.amount <= specificAmount) {
-              broke = true;
-            } else {
-              newItem.amount -= specificAmount;
-            }
-          }
-          if (specificInv == "armor") {
-            const armorInv = ply.getComponent(mc5.EntityComponentTypes.Equippable);
-            armorInv.setEquipment(specificSlot, broke ? void 0 : newItem);
-          } else {
-            const plyInv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
-            plyInv.setItem(specificSlot, broke ? void 0 : newItem);
-          }
-        } catch (e) {
-          CatLogHandler.handleError(e, "manualDamageItem", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que simplifica la lógica de detectar en el inventario del jugador, si tiene uno o varios items en concreto de forma explícita o no.
-       * @param {mc.Player} plySource Jugador en cuestión.
-       * @param {(string | string[] | vanilla.MinecraftItemTypes | vanilla.MinecraftItemTypes[] )} itemsToDetect Item o items a buscar.
-       * @param {boolean?} exactItems (Opcional) Busca explícitamente el nombre del item palabra por palabra. Por defecto está apagado, entonces buscará items sin importar si tienen diferencias. Por ej: Si se busca 'diamond'; minecraft:diamond y minecraft:diamond_sword serían true.
-       * @returns {boolean} Devuelve true en caso de tener ese item, sino, será false.
-       * @author HaJuegos - 18-03-2026
-       * @public
-       * @example
-       * ```ts
-       * // Esto es true si el jugador tiene un item llamado totem o más de forma no explícita.
-       * customEventsManager.plyHasItems(player, 'totem');
-       *
-       * // Esto es true si el jugador tiene un totem de la inmortalidad de forma explícita.
-       * customEventsManager.plyHasItems(player, vanilla.MinecraftItemTypes.TotemOfUndying, true);
-       * ```
-       */
-      plyHasItems(plySource, itemsToDetect, exactItems = false) {
-        const registrationTrace = new Error().stack;
-        try {
-          const invPly = plySource.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
-          const armorPly = plySource.getComponent(mc5.EntityComponentTypes.Equippable);
-          const targetItems = Array.isArray(itemsToDetect) ? itemsToDetect : [itemsToDetect];
-          if (invPly) {
-            for (let i = 0; i < invPly.size; i++) {
-              const item = invPly.getItem(i);
-              if (item) {
-                const itemFound = !exactItems ? targetItems.some((target) => item.typeId.includes(target)) : targetItems.some((target) => item.typeId == target);
-                if (itemFound) {
-                  return true;
-                }
-              }
-            }
-          }
-          if (armorPly) {
-            const equipmentSlots = [
-              mc5.EquipmentSlot.Head,
-              mc5.EquipmentSlot.Chest,
-              mc5.EquipmentSlot.Legs,
-              mc5.EquipmentSlot.Feet,
-              mc5.EquipmentSlot.Offhand
-            ];
-            for (const slot of equipmentSlots) {
-              const item = armorPly.getEquipment(slot);
-              if (item) {
-                const itemFound = !exactItems ? targetItems.some((target) => item.typeId.includes(target)) : targetItems.some((target) => item.typeId == target);
-                if (itemFound) {
-                  return true;
-                }
-              }
-            }
-          }
-        } catch (e) {
-          CatLogHandler.handleError(e, "plyHasItems", registrationTrace);
-        }
-        return false;
-      }
-      /**
-       * Método auxiliar que simplifica la lógica al detectar el uso de un totem, ejecutando los eventos relacionados.
-       * @param {(entity: mc.Entity | mc.Player) => void} callback Los eventos relacionados a ejecutar.
-       * @returns {void}
-       * @version 2 Ahora es un beforeEvent por uso de BeforeOnEntityHeal.
-       * @author HaJuegos - 19-08-2026
-       * @public
-       * @beforeEvent Método que detecta el evento antes de que suceda. Permitiendo cancelar o personalizar el evento antes de que se vea en el juego.
-       * @example
-       * ```ts
-       * // Este evento solo se va a ejecutar cuando una entidad o jugador usa un totem.
-       * customEventsManager.onEntityUseTotem((entity) => {
-       *     console.warn(`${entity.typeId} ha usado un totem.`);
-       *     console.warn(`${entity.name} ha usado un totem.`);
-       * });
-       * ```
-       */
-      onEntityUseTotem(callback) {
-        beforeEventsSimplified.onEntityHeal((args) => {
-          const entity = args.healedEntity;
-          const cause = args.healSource;
-          if (cause.cause != mc5.EntityHealCause.TotemOfUndying)
-            return;
-          callback(entity);
-        });
-      }
-      /**
-       * Método auxiliar que simplifica la lógica de randomizar el inventario de un jugador, cambiando totalmente las ubicaciones de los items en el mismo inventario.
-       * @param {mc.Player} ply Jugador en cuestión.
-       * @author HaJuegos - 30-03-2026
-       * @public
-       * @example
-       * ```ts
-       * // Ahora el inventario estará totalmente desordenado. Solo el inventario, no armadura.
-       * customEventsManager.randomizeInvPly(player);
-       * ```
-       */
-      randomizeInvPly(ply) {
-        const registrationTrace = new Error().stack;
-        try {
-          const inv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
-          const validItems = [];
-          for (let i = 0; i < inv.size; i++) {
-            const item = inv.getItem(i);
-            if (item) {
-              validItems.push(item);
-              inv.setItem(i, void 0);
-            }
-          }
-          if (validItems.length == 0)
-            return;
-          const randomSlots = Array.from({ length: inv.size }, (_, i) => i);
-          for (let i = randomSlots.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [randomSlots[i], randomSlots[j]] = [randomSlots[j], randomSlots[i]];
-          }
-          for (let i = 0; i < validItems.length; i++) {
-            const targetSlot = randomSlots[i];
-            inv.setItem(targetSlot, validItems[i]);
-          }
-        } catch (e) {
-          CatLogHandler.handleError(e, "randomizeInvPly", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que genera un timer basado en tiempo real. Este consiste en minutos iniciales (también horas) iniciando el timer guardando los valores en tiempo real en el jugador asignado que va a ver el timer. Devolviendo y ejecutando código basado en el timer.
-       * @param {CustomTimerParam} paramsTimer Los parámetros y eventos a ejecutar mientras el timer se ejecuta.
-       * @author HaJuegos - 05-04-2026
-       * @public
-       * @example
-       * ```ts
-       * const paramsTimer: CustomTimerParam = {
-       *     sourcePLy: player, // Jugador que tiene el timer
-       *     timerID: 'ha:timer_unique', // Identificador único del timer, por si se usa en más de una ocasión
-       *     initialMns: 2, // Los Minutos iniciales del timer o minutos a mostrar del timer.
-       *     forceRestart: true, // (Opcional) Si es necesario en caso de cambio del valor, por ej, nuevos valores de minutos o segundos, pues hace que el timer se reinicie.
-       *
-       *     // (Opcional) Eventos relacionales cuando el timer pasa un segundo.
-       *     onSecondPass: (ply, timer) => {
-       *         console.log(`Ha pasado un segundo, el tiempo ahora está en ${timer}`);
-       *     },
-       * };
-       *
-       * // Inicia el timer para el jugador en concreto. NOTA: Es un timer interno, no tiene interfaz. Para mostrar el valor del timer, usar los eventos como: onSecondPass.
-       * customEventsManager.startTimerLocal(paramsTimer);
-       * ```
-       */
-      startTimerLocal(paramsTimer) {
-        const registrationTrace = new Error().stack;
-        try {
-          const { sourcePly, timerId, initialScnds, initialMns, initialHrs, forceRestart, onTimerStarts, onSecondPass, onMinutePass, onHourPass, onTimerEnds } = paramsTimer;
-          const mapKey = `${sourcePly.id}_${timerId}`;
-          const propKey = timerId;
-          let isnewTimer = false;
-          if (this.activePlys.has(mapKey)) {
-            if (forceRestart) {
-              const oldID = this.activePlys.get(mapKey);
-              worldToolsSimplified.stopLoop(oldID);
-              this.activePlys.delete(mapKey);
-              sourcePly.setDynamicProperty(timerId, void 0);
-              isnewTimer = true;
-            } else {
-              return;
-            }
-          }
-          const hrsMs = (initialHrs || 0) * 36e5;
-          const mnsMs = (initialMns || 0) * 6e4;
-          const scndsMs = (initialScnds || 0) * 1e3;
-          const totalRequestedMs = hrsMs + mnsMs + scndsMs;
-          let endTime = sourcePly.getDynamicProperty(propKey);
-          if (endTime == void 0) {
-            endTime = Date.now() + totalRequestedMs;
-            sourcePly.setDynamicProperty(propKey, endTime);
-            isnewTimer = true;
-          } else {
-            const remainSaved = Math.max(0, endTime - Date.now());
-            const savedTotalSeconds = Math.floor(remainSaved / 1e3);
-            const requestedTotalSeconds = Math.floor(totalRequestedMs / 1e3);
-            if (Math.abs(savedTotalSeconds - requestedTotalSeconds) >= 2) {
-              endTime = Date.now() + totalRequestedMs;
-              sourcePly.setDynamicProperty(propKey, endTime);
-            }
-          }
-          let lastSecond = -1;
-          let lastMinute = -1;
-          let lastHour = -1;
-          const formatTime = (remainMs) => {
-            if (remainMs < 0)
-              remainMs = 0;
-            const totalSeconds = Math.floor(remainMs / 1e3);
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor(totalSeconds % 3600 / 60);
-            const seconds = totalSeconds % 60;
-            const mStr = minutes.toString().padStart(2, "0");
-            const sSrt = seconds.toString().padStart(2, "0");
-            let currentTime = `${mStr}:${sSrt}`;
-            if (initialHrs != void 0 && initialHrs > 0 || hours > 0) {
-              const hStr = hours.toString().padStart(2, "0");
-              currentTime = `${hStr}:${mStr}:${sSrt}`;
-            }
-            if (lastSecond != -1) {
-              if (seconds != lastSecond && onSecondPass) {
-                onSecondPass(sourcePly, currentTime);
-              }
-              if (minutes != lastMinute && onMinutePass) {
-                onMinutePass(sourcePly, currentTime);
-              }
-              if (hours != lastHour && onHourPass) {
-                onHourPass(sourcePly, currentTime);
-              }
-            }
-            lastSecond = seconds;
-            lastMinute = minutes;
-            lastHour = hours;
-            return currentTime;
-          };
-          const initialRemaining = endTime - Date.now();
-          const initialFormat = formatTime(initialRemaining);
-          if (isnewTimer && onTimerStarts) {
-            onTimerStarts(sourcePly);
-          }
-          if (onSecondPass) {
-            onSecondPass(sourcePly, initialFormat);
-          }
-          ;
-          const loopId = worldToolsSimplified.setLoop(() => {
-            if (!sourcePly.isValid) {
-              worldToolsSimplified.stopLoop(loopId);
-              this.activePlys.delete(mapKey);
-              return;
-            }
-            const currentRemaing = endTime - Date.now();
-            if (currentRemaing <= 0) {
-              sourcePly.setDynamicProperty(propKey, void 0);
-              this.activePlys.delete(mapKey);
-              worldToolsSimplified.stopLoop(loopId);
-              if (onTimerEnds) {
-                onTimerEnds(sourcePly);
-              }
-              ;
-            } else {
-              formatTime(currentRemaing);
-            }
-          }, worldToolsSimplified.convertSecondsToTicks(1));
-          this.activePlys.set(mapKey, loopId);
-        } catch (e) {
-          CatLogHandler.handleError(e, "customStartTimerLocal", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que fuerza la eliminación y dropeo de un item en concreto de un slot del inventario de un jugador.
-       * @param {mc.Player} ply Jugador en concreto a considerar.
-       * @param {(number | number[])} slots El o los slots en concreto a cambiar eliminar.
-       * @param {?mc.ItemStack} itemToRemplace (Opcional) Un item a poner en su lugar al item a dropear o eliminar.
-       * @param {?(string[] | vanilla.MinecraftItemTypes[] | mc.ItemStack[])} whitelistItems (Opcional) Lista de items que no se pueden dropear o eliminar en este sistema.
-       * @returns {void}
-       * @author HaJuegos - 18-05-2026
-       * @public
-       * @example
-       * ```ts
-       * // Cuando este evento se ejecute, los items de los slots "0,1,2,3" seran dropeados y eliminados del jugador. (Si hay items en esos slots)
-       * customEventsManager.dropItemsPly(ply, [0,1,2,3]);
-       * ```
-       */
-      dropItemsPly(ply, slots, itemToRemplace, whitelistItems) {
-        const registrationTrace = new Error().stack;
-        try {
-          const coords = ply.location;
-          const dime = ply.dimension;
-          const inv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
-          const finalSlots = Array.isArray(slots) ? slots : [slots];
-          for (const slot of finalSlots) {
-            const item = inv.getItem(slot);
-            let whitelisted = false;
-            if (item && whitelistItems) {
-              whitelisted = whitelistItems.some((wItem) => {
-                const id = typeof wItem == "string" ? wItem : wItem.typeId;
-                return id == item.typeId;
-              });
-            }
-            if (whitelisted)
-              continue;
-            if (item) {
-              const spawnCoords = { x: coords.x, y: coords.y + 1, z: coords.z };
-              const itemEntity = dime.spawnItem(item, spawnCoords);
-              const force = 0.5;
-              const randomX = (Math.random() - 0.5) * force;
-              const randomZ = (Math.random() - 0.5) * force;
-              itemEntity.applyImpulse({ x: randomX, y: force, z: randomZ });
-            }
-            if (itemToRemplace) {
-              inv.setItem(slot, itemToRemplace);
-            } else if (item) {
-              inv.setItem(slot, void 0);
-            }
-          }
-        } catch (e) {
-          CatLogHandler.handleError(e, "dropItemsPly", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que fuerza la eliminación y dropeo de un item en concreto de un slot del equipamiento de un jugador.
-       * @param {mc.Player} ply Jugador en concreto a considerar.
-       * @param {(mc.EquipmentSlot | mc.EquipmentSlot[])} slots El o los slots en concreto a cambiar eliminar.
-       * @param {?mc.ItemStack} itemToRemplace (Opcional) Un item a poner en su lugar al item a dropear o eliminar.
-       * @param {?(string[] | vanilla.MinecraftItemTypes[] | mc.ItemStack[])} whitelistItems (Opcional) Lista de items que no se pueden dropear o eliminar en este sistema.
-       * @returns {void}
-       * @author HaJuegos - 18-05-2026
-       * @public
-       * @example
-       * ```ts
-       * // Cuando este evento se ejecute, los items de los slots "Helmet, Chestplate y Leggings" seran dropeados y eliminados del jugador. (Si hay items en esos slots)
-       * customEventsManager.dropArmorsPly(ply, [mc.EquipmentSlot.Head, mc.EquipmentSlot.Chest, mc.EquipmentSlot.Legs]);
-       * ```
-       */
-      dropArmorsPly(ply, slots, itemToRemplace, whitelistItems) {
-        const registrationTrace = new Error().stack;
-        try {
-          const coords = ply.location;
-          const dime = ply.dimension;
-          const armorInv = ply.getComponent(mc5.EntityComponentTypes.Equippable);
-          const finalSlots = Array.isArray(slots) ? slots : [slots];
-          for (const slot of finalSlots) {
-            const item = armorInv.getEquipment(slot);
-            let whitelisted = false;
-            if (item && whitelistItems) {
-              whitelisted = whitelistItems.some((wItem) => {
-                const id = typeof wItem == "string" ? wItem : wItem.typeId;
-                return id == item.typeId;
-              });
-            }
-            if (whitelisted)
-              continue;
-            if (item) {
-              const spawnCoords = { x: coords.x, y: coords.y + 1, z: coords.z };
-              const itemEntity = dime.spawnItem(item, spawnCoords);
-              const force = 0.5;
-              const randomX = (Math.random() - 0.5) * force;
-              const randomZ = (Math.random() - 0.5) * force;
-              itemEntity.applyImpulse({ x: randomX, y: force, z: randomZ });
-            }
-            if (itemToRemplace) {
-              armorInv.setEquipment(slot, itemToRemplace);
-            } else if (item) {
-              armorInv.setEquipment(slot, void 0);
-            }
-          }
-        } catch (e) {
-          CatLogHandler.handleError(e, "dropArmorsPly", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que permite el cambio de estado y propiedades a uno o varios items de uno o varios inventarios a un jugador en concreto. Simplificando los lockMode de los items.
-       * @param {LockItemsInvParams} params Los parámetros en concreto para integrar.
-       * @returns {void}
-       * @author HaJuegos - 19-05-2026
-       * @public
-       * @example
-       * ```ts
-       * const params: LockItemsInvParams = {
-       *      ply: source, // Jugador en concreto
-       *      invType: 'inv', // Inventario a cambiar
-       *      lockMethod: mc.ItemLockMode.Inventory, // Tipo de bloqueo a realizar a los items
-       *      keepInDeath: true, // Se asigna la propiedad 'keepInDeath' adicionalmente
-       *      itemsSelection: {
-       *          randomSlots: {
-       *              minSlots: 1,
-       *              maxSlots: 4
-       *          }
-       *      }
-       *  }
-       *
-       * customEventsManager.lockItemsPly(params)
-       * ```
-       */
-      lockItemsPly(params) {
-        const registrationTrace = new Error().stack;
-        try {
-          const { ply, invType, lockMethod, keepInDeath, itemsSelection } = params;
-          const inv = ply.getComponent(mc5.EntityComponentTypes.Inventory)?.container;
-          const armorInv = ply.getComponent(mc5.EntityComponentTypes.Equippable);
-          let selectItems = [];
-          const validChange = (currentLock, targetLock) => {
-            return currentLock != targetLock;
-          };
-          const checkWhitelist = (item) => {
-            if (!itemsSelection.whitelistItems)
-              return false;
-            return itemsSelection.whitelistItems.some((wItem) => {
-              const id = typeof wItem == "string" ? wItem : wItem.typeId;
-              return id == item.typeId;
-            });
-          };
-          if (invType == "inv" || invType == "both") {
-            const slots = itemsSelection.specificSlots ? itemsSelection.specificSlots : Array.from({ length: inv.size }, (_, i) => i);
-            for (const slot of slots) {
-              const item = inv.getItem(slot);
-              if (item && !checkWhitelist(item) && validChange(item.lockMode, lockMethod)) {
-                selectItems.push({ type: "inv", slot, item });
-              }
-            }
-          }
-          if (invType == "armor" || invType == "both") {
-            const allSlots = [mc5.EquipmentSlot.Head, mc5.EquipmentSlot.Chest, mc5.EquipmentSlot.Legs, mc5.EquipmentSlot.Feet, mc5.EquipmentSlot.Offhand];
-            const slots = itemsSelection.specificSlots ? itemsSelection.specificSlots : allSlots;
-            for (const slot of slots) {
-              const item = armorInv.getEquipment(slot);
-              if (item && !checkWhitelist(item) && validChange(item.lockMode, lockMethod)) {
-                selectItems.push({ type: "armor", slot, item });
-              }
-            }
-          }
-          if (itemsSelection.randomSlots) {
-            const { minSlots, maxSlots } = itemsSelection.randomSlots;
-            const selecTotal = Math.floor(Math.random() * (maxSlots - minSlots + 1)) + minSlots;
-            selectItems.sort(() => Math.random() - 0.5);
-            selectItems = selectItems.slice(0, selecTotal);
-          }
-          for (const itemData of selectItems) {
-            const { type, slot, item } = itemData;
-            item.lockMode = lockMethod;
-            if (keepInDeath != void 0) {
-              item.keepOnDeath = keepInDeath;
-            }
-            if (type == "inv") {
-              inv.setItem(slot, item);
-            } else {
-              armorInv.setEquipment(slot, item);
-            }
-          }
-        } catch (e) {
-          CatLogHandler.handleError(e, "lockItemsPly", registrationTrace);
-        }
-      }
-      /**
-       * Método auxiliar que simplifica y permite crear un nuevo punto de localización en el locator bar de forma custom con colores, formas y configuraciones personalizadas. Basado en jugador o jugadores que lo tengan visible.
-       * @param {CustomWayPointsParams} params Parámetros necesarios para la creación del punto de localización para el locatorbar.
-       * @returns {mc.LocationWaypoint} Devuelve el punto de localización custom creado si todo salió bien. Si no, será undefined.
-       * @author HaJuegos - 03-08-2026
-       * @public
-       * @example
-       * ```ts
-       * const customWayPoint: CustomWayPointsParams = {
-       *     targetPlys: ply,
-       *     location: ply.location,
-       *     dimension: ply.dimension,
-       *     // Este parametro puede ser un icono con forma y colores vanilla o sino, una textura custom.
-       *     iconTexture: {
-       *         path: 'textura.png',
-       *         iconWidth: 1,
-       *         iconHeight: 1
-       *     }
-       * }
-       *
-       * customEventsManager.createCustomWayPoint(customWayPoint);
-       * ```
-       */
-      createCustomWayPoint(params) {
-        const registrationTrace = new Error().stack;
-        try {
-          const { targetPlys, location, dimension, iconTexture, color, visible } = params;
-          const texture = "shape" in iconTexture ? iconTexture.shape : { path: iconTexture.path, iconWidth: iconTexture.iconWidth, iconHeight: iconTexture.iconHeight };
-          const selectTexture = {
-            textureBoundsList: [{ lowerBound: 0, texture }]
-          };
-          const point = new mc5.LocationWaypoint({ dimension, x: location.x, y: location.y, z: location.z }, selectTexture, color);
-          if (visible == false) {
-            point.isEnabled = false;
-          }
-          const plys = Array.isArray(targetPlys) ? targetPlys : [targetPlys];
-          for (const ply of plys) {
-            ply.locatorBar.addWaypoint(point);
-          }
-          return point;
-        } catch (e) {
-          CatLogHandler.handleError(e, "customWaypoint", registrationTrace);
-        }
-      }
-    };
-    customEventsManager = new CustomEventsSimplified();
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/core/customTypes.js
-var init_customTypes = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/core/customTypes.js"() {
-  }
-});
-
-// node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/index.js
-var init_dist = __esm({
-  "node_modules/.pnpm/simplified-mojang-api@0.0.6_fdb2a0bda478cb288d979e35078c1275/node_modules/simplified-mojang-api/dist/index.js"() {
-    init_eventsManager();
-    init_afterEventsSimplifiedManager();
-    init_beforeEventsSimplifiedManager();
-    init_worldToolsSimplifiedManager();
-    init_debugToolsSimplified();
-    init_fakePlysManagerSimplififed();
-    init_customToolsManager();
-    init_customTypes();
-  }
-});
-
-// behaviors/Stackeable Totems/src/totemLogic/TotemMetods.ts
+// behaviors/Stackeable Totems/src/totem/logic.ts
 import {
   EntityComponentTypes as EntityComponentTypes2,
-  EntityDamageCause,
   EntityHealCause as EntityHealCause2,
-  EquipmentSlot as EquipmentSlot2,
   Player,
-  system as system4,
   world as world4
 } from "@minecraft/server";
-var TotemMetods;
-var init_TotemMetods = __esm({
-  "behaviors/Stackeable Totems/src/totemLogic/TotemMetods.ts"() {
+var TotemLogic, Totems;
+var init_logic = __esm({
+  "behaviors/Stackeable Totems/src/totem/logic.ts"() {
     "use strict";
-    init_lib();
-    init_dist();
-    TotemMetods = class {
-      /**
-       * Eventos que se inicializan al cargar la clase
-       * @constructor
-       * @author Emiliocrack1355 - 07/09/26
-       */
+    init_utils();
+    TotemLogic = class {
       constructor() {
-        /**
-         * Variable que almacena el typeId del totem
-         * @readonly
-         * @protected
-         * @author Emiliocrack1355 - 07/09/26
-         */
-        this.totem = MinecraftItemTypes.TotemOfUndying;
-        /**
-         * Variable global que controla el estado de uso de
-         * los Void Totems, para evitar mensajes y consumos duplicados
-         * @readonly
-         * @private
-         * @author Emiliocrack1355 - 10/09/26
-         */
-        this.processingVoidTotem = /* @__PURE__ */ new Set();
-        /**
-         * Variable donde se almacenan todos los tipos de totems custom
-         * @readonly
-         * @protected
-         * @author Emiliocrack1355 - 07/09/26
-         */
-        this.totemVariants = [
-          {
-            id: "\xA70vanila_totem",
-            data: 0,
-            name: "\xA7r\xA7eVanila Totem",
-            lore: ["\xA7r\xA79On Use: Normal Totem"],
-            effects: [
-              { eff: "fire_resistance", dur: 15, amp: 0 },
-              { eff: "absorption", dur: 15, amp: 0 },
-              { eff: "regeneration", dur: 45, amp: 0 }
-            ]
-          },
-          {
-            id: "\xA70tnt_totem",
-            data: 1,
-            name: "\xA7r\xA7cTNT Totem",
-            lore: ["\xA7r\xA79On Use: Genera 6 tnt"],
-            effects: [
-              { eff: "resistance", dur: 2, amp: 4 },
-              { eff: "regeneration", dur: 10, amp: 1 }
-            ],
-            sound: "totems.tnt"
-          },
-          {
-            id: "\xA70fly_totem",
-            data: 2,
-            name: "\xA7r\xA7rFly Totem",
-            lore: ["\xA7r\xA79On Use: Otorga Levitacion"],
-            effects: [
-              { eff: "levitation", dur: 1, amp: 59 },
-              { eff: "slow_falling", dur: 12, amp: 0 },
-              { eff: "regeneration", dur: 15, amp: 1 }
-            ],
-            sound: "totems.fly"
-          },
-          {
-            id: "\xA70ender_totem",
-            data: 3,
-            name: "\xA7r\xA7dEnder Totem",
-            lore: ["\xA7r\xA79On Use: Tp al ultimo SpawnPoint"],
-            effects: [
-              { eff: "health_boost", dur: 45, amp: 6 },
-              { eff: "regeneration", dur: 30, amp: 1 },
-              { eff: "fire_resistance", dur: 3, amp: 0 }
-            ],
-            sound: "totems.ender"
-          },
-          {
-            id: "\xA70void_totem",
-            data: 4,
-            name: "\xA7r\xA78Void Totem",
-            lore: ["\xA7r\xA79On Use: Tp al ultimo SpawnPoint", "> Solo funciona en Vacio"],
-            effects: [
-              { eff: "nausea", dur: 15, amp: 0 },
-              { eff: "resistance", dur: 15, amp: 1 },
-              { eff: "regeneration", dur: 10, amp: 1 },
-              { eff: "fire_resistance", dur: 3, amp: 0 }
-            ],
-            sound: "totem.void"
-          },
-          {
-            id: "\xA70tp_totem",
-            data: 5,
-            name: "\xA7r\xA74Tp Totem",
-            lore: ["\xA7r\xA79On Use: Random Tp"],
-            effects: [
-              { eff: "nausea", dur: 5, amp: 0 },
-              { eff: "resistance", dur: 15, amp: 2 },
-              { eff: "regeneration", dur: 15, amp: 2 },
-              { eff: "absorption", dur: 15, amp: 2 }
-            ]
-          }
-        ];
         this.TotemDetect();
       }
       /**
-       * Metodo que detecta cuando un totem es usado
+       * Metodo que detecta el uso de un Totem
+       * @method
        * @private
-       * @author Emiliocrack1355 - 10/09/26
+       * @author Emiliocrack1355 - 23/11/26 <06:25 pm>
        */
       TotemDetect() {
         world4.beforeEvents.entityHeal.subscribe((ev) => {
           const { healSource, healedEntity } = ev;
           if (!(healedEntity instanceof Player)) return;
           if (healSource.cause !== EntityHealCause2.TotemOfUndying) return;
-          const data = this.getHand(healedEntity);
+          const data = utils.getHandTotem(healedEntity);
           if (!data) return;
-          const variant = this.getVariant(data.item.getLore()[0]);
-          if (!variant) return;
-          if (variant.data === 4) {
-            ev.cancel = true;
-            world4.sendMessage({
-              translate: "emi.totems.useTotem.void",
-              with: [variant.name]
-            });
-            return;
-          }
-          this.onUseTotem(healedEntity, data.hand, data.item, ev, false);
-        });
-        beforeEventsSimplified.onEntityHurt((ev) => {
-          const { damage, damageSource, hurtEntity } = ev;
-          if (!(hurtEntity instanceof Player)) return;
-          if (damageSource.cause !== EntityDamageCause.void) return;
-          const data = this.getHand(hurtEntity);
-          if (!data) return;
-          const variant = this.getVariant(data.item.getLore()[0]);
-          if (!variant) return;
-          const health = hurtEntity.getComponent(EntityComponentTypes2.Health);
-          if (!health) return;
-          if (damage < health.currentValue) return;
-          if (variant.data !== 4) {
-            world4.sendMessage({
-              translate: "emi.totems.useTotem.void-normal",
-              with: [variant.name]
-            });
-            return;
-          }
-          if (this.processingVoidTotem.has(hurtEntity.id)) return;
-          this.processingVoidTotem.add(hurtEntity.id);
-          this.onUseTotem(hurtEntity, data.hand, data.item, ev, true);
+          this.onUseTotem(healedEntity, data, ev);
         });
       }
       /**
-       * Metodo auxiliar que obtiene en que mano esta el totem
-       * @param player El jugador que uso el totem
-       * @returns Retorna el Slot y Item
+       * Metodo de logica al confirmar el uso del Totem
+       * @param player Jugador que uso el totem
+       * @param data Informacion respecto al Item y Mano donde se encuentra el totem
+       * @method
        * @private
-       * @author Emiliocrack1355 - 07/09/26
+       * @author Emiliocrack1355 - 23/11/26 <06:33 pm>
        */
-      getHand(player) {
-        const comp = player.getComponent(EntityComponentTypes2.Equippable);
-        if (!comp) return;
-        const main = comp.getEquipment(EquipmentSlot2.Mainhand);
-        const off = comp.getEquipment(EquipmentSlot2.Offhand);
-        let data = void 0;
-        if (!main && off && off.typeId === this.totem)
-          data = { hand: EquipmentSlot2.Offhand, item: off };
-        else if (main && !off && main.typeId === this.totem)
-          data = { hand: EquipmentSlot2.Mainhand, item: main };
-        else if (main && off && main.typeId === this.totem && off.typeId === this.totem)
-          data = { hand: EquipmentSlot2.Offhand, item: off };
-        if (!data) return;
-        return data;
-      }
-      /**
-       * Metodo principal que maneja la logica del consumo de totems,
-       * calcula su probabilidad de uso y mensajes de chat
-       * @param player El jugador que uso el totem
-       * @param slot El slot en donde se encuentra el item
-       * @param item El item del totem
-       * @param ev Evento para cancelar el uso del totem
-       * @private
-       * @author Emiliocrack1355 - 10/09/26
-       */
-      onUseTotem(player, slot, item, ev, isVoid) {
-        const scoreboard = worldToolsSimplified.getOrCreateScorebordObj("config");
-        if (!scoreboard) return;
-        const cost = scoreboard.getScore("cost") ?? 1;
-        const prob = scoreboard.getScore("prob") ?? 101;
-        const amount = item.amount;
-        const lore = item.getLore()[0];
-        const totemData = this.getTotemData(player, slot, cost, amount, lore, item);
+      onUseTotem(player, data, ev) {
+        const raw = world4.getDynamicProperty(utils.WorldDynamicID);
+        let config = { prob: 0, cost: 1 };
+        if (typeof raw === "string") {
+          try {
+            config = { ...config, ...JSON.parse(raw) };
+          } catch {
+            console.warn("Error on Load World Dynamic Config, Default Values");
+          }
+        }
+        const amount = data.item.amount;
+        const totemData = utils.getTotemData(
+          player,
+          data.hand,
+          data.item,
+          amount,
+          config.cost
+        );
         if (!totemData.hasStack) {
-          this.failedTotem(player, lore, totemData, ev, isVoid);
+          utils.failedTotem(player, totemData, ev);
           return;
         }
         let probData;
-        if (prob < 101) {
+        if (config.prob > 0) {
           const random = Math.floor(Math.random() * 100) + 1;
-          probData = { hasFailed: random >= prob, rand: random, prob };
-        }
-        if (probData?.hasFailed)
-          this.failedTotem(player, lore, totemData, ev, isVoid, probData);
-        else this.successTotem(player, lore, totemData, ev, isVoid, probData);
-      }
-      /**
-       * Metodo auxiliar que obtiene toda la informacion con respecto del coste al usar
-       * el totem, analizando el inventario en busca de la misma variante de totem
-       * @param player El jugador que uso el totem
-       * @param slot Slot en donde esta el item
-       * @param cost Cantidad de totems a gastar
-       * @param amount Cantidad de totems que existen en el slot
-       * @param lore El identificador del totem custom
-       * @returns Retorna informacion de donde se encuentran los totems en el inventario, ademas de la cantidad a consumirse
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      getTotemData(player, slot, cost, amount, lore, item) {
-        if (amount >= cost)
-          return {
-            hasStack: true,
-            hand: slot,
-            handItem: item,
-            handAmount: amount - cost
+          probData = {
+            hasFailed: random >= config.prob,
+            rand: random,
+            prob: config.prob
           };
-        const inv = player.getComponent(EntityComponentTypes2.Inventory)?.container;
-        if (!inv) return { hasStack: false };
-        let needs = cost - amount;
-        const itemsInv = [];
-        for (let i = 0; i < inv.size; i++) {
-          if (needs <= 0) break;
-          const it = inv.getItem(i);
-          if (!it || it.typeId !== this.totem) continue;
-          if (it.getLore()[0] !== lore) continue;
-          if (it.amount < needs) {
-            needs -= it.amount;
-            itemsInv.push({ slot: i, amount: it.amount });
-          } else {
-            itemsInv.push({ slot: i, amount: needs });
-            needs = 0;
-            break;
-          }
         }
-        return needs <= 0 ? {
-          hasStack: true,
-          hand: slot,
-          handItem: item,
-          handAmount: amount,
-          inv: itemsInv
-        } : { hasStack: false };
+        if (probData?.hasFailed) utils.failedTotem(player, totemData, ev, probData);
+        else utils.successTotem(player, totemData, probData);
       }
       /**
-       * Metodo auxiliar que controla y envia los mensajes al concluirse que el totem ha funcionado
-       * @param player El jugador que uso el totem
-       * @param lore El identificador del totem custom
-       * @param totemData La informacion del inventario con respecto al totem custom
-       * @param probData La informacion de probabilidad de uso del totem
-       * @private
-       * @author Emiliocrack1355 - 10/09/26
+       * Metodo que maneja la logica para consumir los
+       * totems de la mano y del inventario
+       * @param player
+       * @param totemData
+       * @method
+       * @public
+       * @author Emiliocrack1355 - 23/11/26 <06:48 pm>
        */
-      successTotem(player, lore, totemData, ev, isVoid, probData) {
-        const variant = this.getVariant(lore);
-        if (!variant) return;
-        if (isVoid) ev.cancel = true;
-        if (probData) {
-          world4.sendMessage({
-            translate: "emi.totems.useTotem.prob",
-            with: [
-              player.name,
-              variant.name,
-              String(probData.rand),
-              String(probData.prob)
-            ]
-          });
-        } else {
-          world4.sendMessage({
-            translate: "emi.totems.useTotem",
-            with: [player.name, variant.name]
-          });
-        }
-        system4.run(() => {
-          this.processingVoidTotem.delete(player.id);
-          this.onTotemEffect(player, variant);
-          this.consumeTotem(player, totemData);
-        });
-      }
-      /**
-       * Metodo auxiliar que controla y envia los mensajes al concluirse que el totem ha fallado
-       * @param player El jugador que uso el totem
-       * @param lore El identificador del totem custom
-       * @param ev Evento para cancelar el uso del totem
-       * @param totemData La informacion del inventario con respecto al totem custom
-       * @param probData La informacion de probabilidad de uso del totem
-       * @private
-       * @author Emiliocrack1355 - 10/09/26
-       */
-      failedTotem(player, lore, totemData, ev, isVoid, probData) {
-        system4.runTimeout(() => {
-          this.processingVoidTotem.delete(player.id);
-        }, 20);
-        const variant = this.getVariant(lore);
-        if (!variant) return;
-        if (!isVoid) ev.cancel = true;
-        if (!totemData.hasStack) {
-          world4.sendMessage({
-            translate: "emi.totems.useTotem.notEnought",
-            with: [player.name, variant.name]
-          });
-          return;
-        }
-        if (probData) {
-          world4.sendMessage({
-            translate: "emi.totems.useTotem.fail",
-            with: [
-              player.name,
-              variant.name,
-              String(probData.rand),
-              String(probData.prob)
-            ]
-          });
-          return;
-        }
-      }
-      /**
-       * Metodo auxiliar que maneja el consume de los totems
-       * @param player El jugador que uso el totem
-       * @param totemData La informacion del inventario con respecto al totem custom
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      consumeTotem(player, totemData) {
+      onConsumeTotem(player, totemData) {
         const equip = player.getComponent(EntityComponentTypes2.Equippable);
         if (!equip) return;
         if (totemData.hasStack) {
@@ -6672,7 +6411,7 @@ var init_TotemMetods = __esm({
             if (!inv) return;
             for (const { slot, amount } of totemData.inv) {
               const it = inv.getItem(slot);
-              if (!it) continue;
+              if (!it) return;
               const remaining = it.amount - amount;
               if (remaining > 0) {
                 const newItem = it.clone();
@@ -6685,438 +6424,51 @@ var init_TotemMetods = __esm({
           }
         }
       }
-      /**
-       * Metodo auxiliar para obtener la variante exacta del totem custom
-       * @param lore La variante de totem custom a buscar
-       * @returns Retorna la informacion del totem custom requerido, en caso de no existir retorna nulo
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      getVariant(lore) {
-        return lore ? this.totemVariants.find((v) => v.id === lore) : void 0;
-      }
-      /**
-       * Metodo que se sobreescribira en la clase hija, que controlara los efectos
-       * y habilidades de los totems custom
-       * @param player El jugador que uso el totem
-       * @param variant La variante del totem custom
-       * @protected
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      onTotemEffect(player, variant) {
-      }
     };
+    Totems = new TotemLogic();
   }
 });
 
-// behaviors/Stackeable Totems/src/totemLogic/CustomTotems.ts
+// behaviors/Stackeable Totems/src/system/utils.ts
 import {
   EntityComponentTypes as EntityComponentTypes3,
-  system as system5,
+  EquipmentSlot as EquipmentSlot2,
+  system as system4,
   world as world5
 } from "@minecraft/server";
-var require_CustomTotems = __commonJS({
-  "behaviors/Stackeable Totems/src/totemLogic/CustomTotems.ts"() {
+var Utils, utils;
+var init_utils = __esm({
+  "behaviors/Stackeable Totems/src/system/utils.ts"() {
     "use strict";
-    init_TotemMetods();
     init_lib();
-    var CustomTotems = class extends TotemMetods {
-      /**
-       * Metodos que son traspasados a la clase padre, para ser inicializados
-       * @constructor
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      constructor() {
-        super();
-        /**
-         * Variable que controla los escaneos de inventario por jugador
-         * @readonly
-         * @private
-         * @author Emiliocrack1355 - 07/09/26
-         */
-        this.activeScans = /* @__PURE__ */ new Map();
-        /**
-         * Variable global que indica los efectos vanila al usar el totem
-         * @readonly
-         * @private
-         * @author Emiliocrack1355 - 07/09/26
-         */
-        this.vanilaTotemEffects = [
-          { eff: "fire_resistance" },
-          { eff: "absorption" },
-          { eff: "regeneration" }
-        ];
-        this.scanTotem();
-      }
-      /**
-       * Metodo sobreescribido de la clase padre, que controla y aplica los efectos y
-       * habilidades de cada totem custom
-       * @param player El jugador en cuestion que uso el totem
-       * @param variant Informacion al respecto del totem custom
-       * @protected
-       * @author Emiliocrack1355 - 10/09/26
-       */
-      onTotemEffect(player, variant) {
-        this.applyEffects("remove", player, this.vanilaTotemEffects);
-        this.applyEffects("add", player, variant.effects);
-        if (variant.sound)
-          player.dimension.playSound(variant.sound, player.location);
-        const { x, y, z, dim } = this.getSpawnPoint(player);
-        switch (variant.id) {
-          case "\xA70tnt_totem":
-            this.spawnTNT(player);
-            break;
-          case "\xA70ender_totem":
-            player.teleport({ x, y, z }, { dimension: dim });
-            break;
-          case "\xA70tp_totem":
-            this.randomTp(player);
-            break;
-          case "\xA70void_totem":
-            player.teleport({ x, y, z }, { dimension: dim });
-            break;
-        }
-      }
-      /**
-       * Metodo auxiliar principal que controla el escaneo del inventario
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      scanTotem() {
-        system5.runInterval(() => {
-          for (const player of world5.getPlayers()) {
-            const running = this.activeScans.get(player.id);
-            if (running) {
-              const { done: done2 } = running.next();
-              if (done2) this.activeScans.delete(player.id);
-              continue;
-            }
-            const gen = this.scanInventory(player);
-            const { done } = gen.next();
-            if (!done) this.activeScans.set(player.id, gen);
-          }
-        });
-      }
-      /**
-       * Metodo auxiliar que escanea el inventario en busca de totems con DataValue
-       * @param player El jugador el cual se escanea su inventario
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      *scanInventory(player) {
-        const inv = player.getComponent(EntityComponentTypes3.Inventory)?.container;
-        if (!inv) return;
-        for (let i = 0; i < inv.size; i++) {
-          yield;
-          const item = inv.getItem(i);
-          if (!item || item.typeId !== this.totem) continue;
-          if (item.getLore()[0]?.startsWith("\xA70")) continue;
-          for (const variant of this.totemVariants) {
-            const query = i <= 8 ? `testfor @s[hasitem={item=${this.totem},location=slot.hotbar,slot=${i},data=${variant.data}}]` : `testfor @s[hasitem={item=${this.totem},location=slot.inventory,slot=${i - 9},data=${variant.data}}]`;
-            if (!player.runCommand(query).successCount) continue;
-            const newItem = item.clone();
-            newItem.setLore([variant.id, ...variant.lore]);
-            newItem.nameTag = variant.name;
-            inv.setItem(i, newItem);
-            break;
-          }
-        }
-      }
-      /**
-       * Metodo auxiliar para aplicar o remover efectos
-       * @param type Se declara si se agregaran o eliminaran efectos
-       * @param player El jugador en cuestion
-       * @param effects Lista de efectos
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      applyEffects(type, player, effects) {
-        for (const { eff, dur, amp } of effects) {
-          if (type === "remove") {
-            player.removeEffect(eff);
-          } else if (type === "add") {
-            player.addEffect(eff, (dur ?? 10) * 20, { amplifier: amp ?? 0 });
-          }
-        }
-      }
-      /**
-       * Metodo auxiliar para generar TNT
-       * @param player El jugador que uso el totem
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      spawnTNT(player) {
-        const { x, y, z } = player.location;
-        const dim = player.dimension;
-        const offsets = [
-          [4, 0],
-          [3, 3],
-          [0, 4],
-          [-3, 3],
-          [-4, 0],
-          [-3, -3],
-          [0, -4],
-          [3, -3]
-        ];
-        for (const [ox, oz] of offsets) {
-          dim.spawnEntity(
-            "minecraft:tnt",
-            { x: x + ox, y: y + 3, z: z + oz },
-            { spawnEvent: "emi:from_totem" }
-          );
-        }
-      }
-      /**
-       * Metodo auxiliar para realizar Tp aleatorios
-       * @param player El jugador que uso el totem
-       * @private
-       * @author Emiliocrack1355 - 10/09/26
-       * @changes Se ha agregado la variable Y para hacer Tp a la maxima
-       * altura en relacion a la altura del jugador
-       */
-      randomTp(player) {
-        const origin = { ...player.location };
-        const { x, y, z } = player.location;
-        const range = 16;
-        const dim = player.dimension;
-        const nx = x + (Math.random() * range * 2 - range);
-        const nz = z + (Math.random() * range * 2 - range);
-        let ny = Math.floor(y);
-        while (ny < dim.heightRange.max - 1) {
-          const block = dim.getBlock({ x: nx, y: ny + 1, z: nz });
-          if (block?.typeId === MinecraftBlockTypes.Air) break;
-          ny++;
-        }
-        const destination = { x: nx, y: ny + 1, z: nz };
-        player.teleport(destination, { dimension: dim });
-        system5.runJob(this.spawnTrail(dim, origin, destination));
-      }
-      /**
-       * Metodo auxiliar generador que crea un rastro de particulas
-       * entre dos puntos, repartido en varios ticks para evitar lag,
-       * con una dispersion aleatoria alrededor de cada punto de la linea
-       * @param dim La dimension en donde se genera el rastro
-       * @param start Posicion inicial del rastro
-       * @param end Posicion final del rastro
-       * @param particlesPerStep Cantidad de particulas generadas por cada punto del rastro
-       * @param spreadRadius Radio maximo de dispersion aleatoria por particula
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       */
-      *spawnTrail(dim, start, end, particlesPerStep = 6, spreadRadius = 0.75) {
-        const dx = end.x - start.x;
-        const dy = end.y - start.y;
-        const dz = end.z - start.z;
-        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const steps = Math.max(1, Math.ceil(distance * 2));
-        for (let i = 0; i <= steps; i++) {
-          const t = i / steps;
-          const point = {
-            x: start.x + dx * t,
-            y: start.y + dy * t + 1.75,
-            z: start.z + dz * t
-          };
-          for (let p = 0; p < particlesPerStep; p++) {
-            const offset = this.randomSphereOffset(spreadRadius);
-            const finalPoint = {
-              x: point.x + offset.x,
-              y: point.y + offset.y,
-              z: point.z + offset.z
-            };
-            try {
-              dim.spawnParticle("minecraft:basic_portal_particle", finalPoint);
-            } catch {
-            }
-          }
-          yield;
-        }
-      }
-      /**
-       * Metodo auxiliar que genera un offset aleatorio dentro de una esfera,
-       * con distribucion uniforme en volumen
-       *
-       * @param radius Radio maximo de la esfera
-       * @returns Retorna un vector {x, y, z} dentro del radio dado
-       * @private
-       * @author Emiliocrack1355 - 07/09/26
-       * @nota Me apoye de IA porque la matematica esta compleja xD
-       */
-      randomSphereOffset(radius) {
-        const r = radius * Math.cbrt(Math.random());
-        const theta = Math.random() * 2 * Math.PI;
-        const phi = Math.acos(2 * Math.random() - 1);
-        return {
-          x: r * Math.sin(phi) * Math.cos(theta),
-          y: r * Math.sin(phi) * Math.sin(theta),
-          z: r * Math.cos(phi)
-        };
-      }
-      /**
-       * Metodo auxiliar para obtener el spawnpoint del jugador,
-       * en caso de no existir, se retorna el world spawn
-       * @param player El jugador que uso el totem
-       * @returns Retorna el SpawnPoint del jugador o el Spawn por defecto del mundo
-       * @private
-       * @author Emiliocrack1355 - 09/09/26
-       */
-      getSpawnPoint(player) {
-        const spawnPoint = player.getTags().find((t) => t.startsWith("spawn:"));
-        if (!spawnPoint) {
-          const { x, y, z } = world5.getDefaultSpawnLocation();
-          const dim = world5.getDimension("overworld");
-          return { x, y, z, dim };
-        } else {
-          const spawn = spawnPoint.split(":")[1];
-          const [coords, dimension] = spawn.split(";");
-          const [x, y, z] = coords.split(",");
-          const dim = world5.getDimension(dimension);
-          return { x: Number(x), y: Number(y), z: Number(z), dim };
-        }
-      }
-    };
-    new CustomTotems();
-  }
-});
-
-// behaviors/Stackeable Totems/src/worldEvents/worldInit.ts
-import {
-  CommandPermissionLevel,
-  CustomCommandParamType,
-  Player as Player2,
-  system as system6,
-  world as world6
-} from "@minecraft/server";
-var WorldEventsManager, utilsClass;
-var init_worldInit = __esm({
-  "behaviors/Stackeable Totems/src/worldEvents/worldInit.ts"() {
-    "use strict";
-    init_dist();
-    WorldEventsManager = class {
-      /**
-       * Eventos principales cuando la clase es iniciada
-       * @constructor
-       * @author Emiliocrack1355 - 07/09/26
-       */
+    init_logic();
+    Utils = class {
       constructor() {
         /**
-         * Variable global que indica la version del addon
+         * Variable que almacena el World Dynamic ID
          * @readonly
-         * @private
-         * @author Emiliocrack1355 - 07/09/26
+         * @method
+         * @public
+         * @author Emiliocrack1355 - 23/11/26 <06:05 pm>
          */
-        this.addonVer = "1.0";
+        this.WorldDynamicID = "emi:TotemVanilaConfig";
         /**
-         * Variable global que indica la version del addon
+         * Variable que almacena el ID del Totem
          * @readonly
-         * @private
-         * @author Emiliocrack1355 - 07/09/26
+         * @method
+         * @public
+         * @author Emiliocrack1355 - 23/11/26 <06:28 pm>
          */
-        this.addonState = "-beta";
-        customEventsManager.fastItemsSystem(() => ["totem", "shield"]);
-        this.onPlayerSpawnEvents();
+        this.totem = MinecraftItemTypes.TotemOfUndying;
       }
       /**
-       * Metodo principal que se encarga del mensaje de bienvenida al entrar al mundo
-       * @private
-       * @author Emiliocrack1355 & HaJuegos - 10/09/26
-       * @changes Se agrego una condicion dentro del comando /totem para validar
-       * que el valor este dentro de un rango valido
-       */
-      onPlayerSpawnEvents() {
-        afterEventsSimplified.onPlayerSpawns((args) => {
-          const { player, initialSpawn } = args;
-          if (initialSpawn) {
-            worldToolsSimplified.setDelay(() => {
-              player.sendMessage({
-                translate: "emi.totems.system.welcome",
-                with: [this.addonVer, this.addonState]
-              });
-              worldToolsSimplified.getOrCreateScorebordObj("config");
-              system6.run(() => {
-                const score = worldToolsSimplified.getOrCreateScorebordObj("config");
-                score?.setScore("prob", 101);
-                score?.setScore("cost", 1);
-              });
-            }, worldToolsSimplified.convertSecondsToTicks(30));
-          }
-        });
-        world6.beforeEvents.playerInteractWithBlock.subscribe((ev) => {
-          const { block, player } = ev;
-          if (!player || !block) return;
-          if (block.typeId !== "minecraft:bed") return;
-          if (!player.isSneaking) return;
-          ev.cancel = true;
-          system6.run(() => {
-            const tag = player.getTags().find((t) => t.startsWith("spawn:"));
-            if (tag) player.removeTag(tag);
-            const { x, y, z } = block.location;
-            const dim = block.dimension.id.split(":")[1];
-            player.sendMessage({
-              translate: "emi.totems.saveSpawn",
-              with: [`${x}, ${y}, ${z} en ${dim}`]
-            });
-            player.addTag(`spawn:${x},${y},${z};${dim}`);
-          });
-        });
-        beforeEventsSimplified.createCustomCommand(
-          {
-            name: "emi:totem",
-            description: "emi.totems.cmd",
-            cheatsRequired: false,
-            permissionLevel: CommandPermissionLevel.Admin,
-            mandatoryParameters: [
-              { name: "emi:totem_options", type: CustomCommandParamType.Enum },
-              { name: "value", type: CustomCommandParamType.Integer }
-            ]
-          },
-          (origin, option, value) => {
-            const player = origin.initiator ?? origin.sourceEntity;
-            if (!(player instanceof Player2)) return;
-            const config = world6.scoreboard.getObjective("config");
-            if (!config) return;
-            if (option === "prob" && (value < 1 || value > 101)) {
-              world6.sendMessage({
-                translate: "emi.totems.system.notValidProb",
-                with: [String(value)]
-              });
-              return;
-            }
-            if (option === "cost" && value < 1) {
-              world6.sendMessage({
-                translate: "emi.totems.system.notValidCost",
-                with: [String(value)]
-              });
-              return;
-            }
-            system6.run(() => {
-              switch (option) {
-                case "prob":
-                  config.setScore("prob", value);
-                  world6.sendMessage({
-                    translate: "emi.totems.system.setProb",
-                    with: [String(value)]
-                  });
-                  break;
-                case "cost":
-                  config.setScore("cost", value);
-                  world6.sendMessage({
-                    translate: "emi.totems.system.setCost",
-                    with: [String(value)]
-                  });
-                  break;
-              }
-            });
-          },
-          { "emi:totem_options": ["prob", "cost"] }
-        );
-      }
-      /**
-       * Metodo auxiliar para formatear el texto en una forma bonita UwU
-       * @param text Texto a formatear
-       * @param title Se indica si se inicia cada palabra con mayuscula
-       * @returns Retorna el texto formateado
+       * Metodo para formatear el texto de una forma bonita
+       * @param text Texto a ser formateado
+       * @param title Si se desea con mayusculas por palabra
+       * @returns texto formateado
+       * @method
        * @public
-       * @author Emiliocrack1355 - 07/09/26
+       * @author Emiliocrack1355 - 23/11/26 <11:10 am>
        */
       formatText(text, title = false) {
         if (!text) return "";
@@ -7128,16 +6480,343 @@ var init_worldInit = __esm({
         }
         return outText;
       }
+      /**
+       * Metodo para obtener la mano principal donde se posea el totem
+       * @param player Jugador a analizar
+       * @returns mano en donde se encuentra el totem
+       * @method
+       * @public
+       * @author Emiliocrack1355 - 23/11/26 <06:30 pm>
+       */
+      getHandTotem(player) {
+        const comp = player.getComponent(EntityComponentTypes3.Equippable);
+        if (!comp) return;
+        const main = comp.getEquipment(EquipmentSlot2.Mainhand);
+        const off = comp.getEquipment(EquipmentSlot2.Offhand);
+        let data = void 0;
+        if (!main && off && off.typeId === this.totem) {
+          data = { hand: EquipmentSlot2.Offhand, item: off };
+        } else if (main && !off && main.typeId === this.totem) {
+          data = { hand: EquipmentSlot2.Mainhand, item: main };
+        } else if (main && off && main.typeId === this.totem && off.typeId === this.totem) {
+          data = { hand: EquipmentSlot2.Offhand, item: off };
+        }
+        if (!data) return;
+        return data;
+      }
+      /**
+       * Metodo auxiliar para obtener toda la data del Totem
+       * @param player Jugador que posee el totem
+       * @param slot Slot de mano en donde se encuentra el totem
+       * @param item Item de la mano
+       * @param amount Cantidad de totem en la mano
+       * @param cost Costo por el uso del totem
+       * @param lore Lore del totem para su ID
+       * @returns
+       * @method
+       * @public
+       * @author Emiliocrack1355 - 23/11/26 <06:35 pm>
+       */
+      getTotemData(player, slot, item, amount, cost) {
+        if (amount >= cost) {
+          return {
+            hasStack: true,
+            hand: slot,
+            handItem: item,
+            handAmount: amount - cost
+          };
+        }
+        const inv = player.getComponent(EntityComponentTypes3.Inventory)?.container;
+        if (!inv) return { hasStack: false };
+        let reqs = cost - amount;
+        const itemsInv = [];
+        for (let i = 0; i < inv.size; i++) {
+          if (reqs <= 0) break;
+          const it = inv.getItem(i);
+          if (!it || it.typeId !== this.totem) continue;
+          if (it.amount < reqs) {
+            reqs -= it.amount;
+            itemsInv.push({ slot: i, amount: it.amount });
+          } else {
+            itemsInv.push({ slot: i, amount: reqs });
+            reqs = 0;
+            break;
+          }
+        }
+        return reqs <= 0 ? {
+          hasStack: true,
+          hand: slot,
+          handItem: item,
+          handAmount: amount,
+          inv: itemsInv
+        } : { hasStack: false };
+      }
+      /**
+       * Metodo auxiliar que anuncia por el chat cuyando al
+       * usar un totem este falla
+       * @param player Jugador que usa el totem
+       * @param lore Lore para identificar el ID
+       * @param totemData Informacion respecto al Totem
+       * @param probData Informacion respecto a la probabilidad de uso
+       * @method
+       * @public
+       * @author Emiliocrack1355 - 23/11/26 <06:40 pm>
+       */
+      failedTotem(player, totemData, ev, probData) {
+        ev.cancel = true;
+        if (!totemData.hasStack) {
+          world5.sendMessage({
+            translate: "emi.totems.useTotem.notEnought",
+            with: [player.name]
+          });
+          return;
+        }
+        if (probData) {
+          world5.sendMessage({
+            translate: "emi.totems.useTotem.fail",
+            with: [player.name, String(probData.rand), String(probData.prob)]
+          });
+          return;
+        }
+      }
+      /**
+       * Metodo auxiliar que anuncia por el chat cuando alguien
+       * utiliza un totem
+       * @param player Jugador que usa el totem
+       * @param variant Variante del totem
+       * @param totemData Informacion respecto al Totem
+       * @param probData Informacion respecto a la probabilidad de uso
+       * @method
+       * @public
+       * @author Emiliocrack1355 - 23/11/26 <06:42 pm>
+       */
+      successTotem(player, totemData, probData) {
+        if (probData) {
+          world5.sendMessage({
+            translate: "emi.totems.useTotem.prob",
+            with: [player.name, String(probData.rand), String(probData.prob)]
+          });
+        } else {
+          world5.sendMessage({
+            translate: "emi.totems.useTotem",
+            with: [player.name]
+          });
+        }
+        system4.run(() => {
+          Totems.onConsumeTotem(player, totemData);
+        });
+      }
     };
-    utilsClass = new WorldEventsManager();
+    utils = new Utils();
+  }
+});
+
+// behaviors/Stackeable Totems/src/world/init.ts
+import {
+  CommandPermissionLevel,
+  CustomCommandParamType,
+  Player as Player3,
+  system as system5,
+  world as world6
+} from "@minecraft/server";
+var require_init = __commonJS({
+  "behaviors/Stackeable Totems/src/world/init.ts"() {
+    "use strict";
+    init_dist();
+    init_utils();
+    var WorldInit = class {
+      constructor() {
+        /**
+         * Variable que almacena la version del addon
+         * @readonly
+         * @method
+         * @private
+         * @author Emiliocrack1355 - 23/11/26 <06:00 pm>
+         */
+        this.AddonVer = "1.0";
+        /**
+         * Variable que almacena el estado del addon
+         * @readonly
+         * @method
+         * @private
+         * @author Emiliocrack1355 - 23/11/26 <06:00 pm>
+         */
+        this.AddonBeta = true;
+        this.onWorldInit();
+        this.onPlayerSpawn();
+        this.loadCustomCommands();
+      }
+      /**
+       * Metodo que ejecuta todo lo necesario para inicializar el mundo
+       * @method
+       * @private
+       * @author Emiliocrack1355 - 23/11/26 <06:02 pm>
+       */
+      onWorldInit() {
+        afterEventsSimplified.onWorldReady(() => {
+          const dynamic = world6.getDynamicProperty(utils.WorldDynamicID);
+          if (typeof dynamic === "undefined") {
+            world6.setDynamicProperty(
+              utils.WorldDynamicID,
+              JSON.stringify({ prob: 0, cost: 1 })
+            );
+            console.warn(`Creating World Dynamic Values of Config`);
+          } else {
+            console.warn(`Load World Dynamic Values of Config`);
+          }
+        });
+      }
+      /**
+       * Metodo que carga lo necesario cuando el jugador spawnea
+       * @method
+       * @private
+       * @author Emiliocrack1355 - 23/11/26 <06:10 pm>
+       */
+      onPlayerSpawn() {
+        afterEventsSimplified.onPlayerSpawns((args) => {
+          const { initialSpawn, player } = args;
+          if (initialSpawn) {
+            system5.runTimeout(() => {
+              player.sendMessage({
+                translate: "emi.totems.system.welcome",
+                with: [this.AddonVer, this.AddonBeta ? "-beta" : ""]
+              });
+            }, worldToolsSimplified.convertSecondsToTicks(30));
+          }
+        });
+      }
+      /**
+       * Metodo que carga los comandos personalizados del addon
+       * @method
+       * @private
+       * @author Emiliocrack1355 - 23/11/26 <06:15 pm>
+       * @LastModified 24/11/26 <06:30 pm>
+       */
+      loadCustomCommands() {
+        beforeEventsSimplified.createCustomCommand(
+          {
+            name: "emi:totem",
+            description: "emi.customT.cmd.totem",
+            cheatsRequired: false,
+            permissionLevel: CommandPermissionLevel.Any,
+            mandatoryParameters: [
+              { name: "emi:totem_options", type: CustomCommandParamType.Enum },
+              { name: "value", type: CustomCommandParamType.Integer }
+            ]
+          },
+          (origin, option, value) => {
+            const player = origin.initiator ?? origin.sourceEntity;
+            if (!(player instanceof Player3)) return;
+            if (!player.hasTag("admin")) {
+              player.sendMessage({ translate: "emi.totems.cmd.notAdmin" });
+              return;
+            }
+            const raw = world6.getDynamicProperty(utils.WorldDynamicID);
+            let config = { prob: 0, cost: 1 };
+            if (typeof raw === "string") {
+              try {
+                config = { ...config, ...JSON.parse(raw) };
+              } catch {
+                console.warn("Error on Load World Dynamic Config");
+              }
+            }
+            system5.run(() => {
+              switch (option) {
+                case "prob":
+                  if (value < 1 || value > 100) {
+                    world6.sendMessage({
+                      translate: "emi.totems.cmd.notValidProb",
+                      with: [String(value)]
+                    });
+                    return;
+                  }
+                  config.prob = value;
+                  world6.setDynamicProperty(
+                    utils.WorldDynamicID,
+                    JSON.stringify(config)
+                  );
+                  world6.sendMessage({
+                    translate: "emi.totems.cmd.setProb",
+                    with: [String(value)]
+                  });
+                  break;
+                case "cost":
+                  if (value < 1) {
+                    world6.sendMessage({
+                      translate: "emi.totems.cmd.notValidCost",
+                      with: [String(value)]
+                    });
+                    return;
+                  }
+                  config.cost = value;
+                  world6.setDynamicProperty(
+                    utils.WorldDynamicID,
+                    JSON.stringify(config)
+                  );
+                  world6.sendMessage({
+                    translate: "emi.totems.cmd.setCost",
+                    with: [String(value)]
+                  });
+                  break;
+              }
+            });
+          },
+          { "emi:totem_options": ["prob", "cost"] }
+        );
+      }
+    };
+    new WorldInit();
+  }
+});
+
+// behaviors/Stackeable Totems/src/world/events.ts
+import { system as system6 } from "@minecraft/server";
+var require_events = __commonJS({
+  "behaviors/Stackeable Totems/src/world/events.ts"() {
+    "use strict";
+    init_lib();
+    init_dist();
+    init_utils();
+    var WorldEvents = class {
+      constructor() {
+        this.onPlayerUseTotem();
+      }
+      /**
+       * Metodo que detecta cuando se usa una cama
+       * @method
+       * @private
+       * @author Emiliocrack1355 - 23/11/26 <06:20 pm>
+       */
+      onPlayerUseTotem() {
+        beforeEventsSimplified.onInteractBlock((args) => {
+          const { player, block } = args;
+          if (!block || block.typeId !== MinecraftBlockTypes.Bed) return;
+          if (!player.isSneaking) return;
+          args.cancel = true;
+          system6.run(() => {
+            const tag = player.getTags().find((t) => t.startsWith("SpawnPoint:"));
+            if (tag) player.removeTag(tag);
+            const { x, y, z } = block.location;
+            const dim = block.dimension.id.split(":")[1];
+            player.sendMessage({
+              translate: "emi.totems.system.saveSpawn",
+              with: [String(x), String(y), String(z), utils.formatText(dim, true)]
+            });
+            player.addTag(`SpawnPoint:${x},${y},${z};${dim}`);
+          });
+        });
+      }
+    };
+    new WorldEvents();
   }
 });
 
 // behaviors/Stackeable Totems/src/main.ts
 var require_main = __commonJS({
   "behaviors/Stackeable Totems/src/main.ts"() {
-    var import_CustomTotems = __toESM(require_CustomTotems());
-    init_worldInit();
+    var import_init = __toESM(require_init());
+    var import_events = __toESM(require_events());
+    init_logic();
   }
 });
 export default require_main();

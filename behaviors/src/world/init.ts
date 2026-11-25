@@ -87,6 +87,7 @@ class WorldInit {
    * @method
    * @private
    * @author Emiliocrack1355 - 23/11/26 <06:15 pm>
+   * @LastModified 24/11/26 <06:30 pm>
    */
   private loadCustomCommands(): void {
     beforeEventsSimplified.createCustomCommand(
@@ -100,13 +101,14 @@ class WorldInit {
           { name: "value", type: CustomCommandParamType.Integer },
         ],
       },
-      (origin, option, value): undefined => {
+      (origin, option: string, value: number): undefined => {
         const player = origin.initiator ?? origin.sourceEntity;
         if (!(player instanceof Player)) return;
         if (!player.hasTag("admin")) {
           player.sendMessage({ translate: "emi.totems.cmd.notAdmin" });
           return;
         }
+
         const raw = world.getDynamicProperty(utils.WorldDynamicID);
         let config: { prob: number; cost: number } = { prob: 0, cost: 1 };
         if (typeof raw === "string") {
@@ -119,24 +121,38 @@ class WorldInit {
         system.run((): void => {
           switch (option) {
             case "prob":
+              if (value < 1 || value > 100) {
+                world.sendMessage({
+                  translate: "emi.totems.cmd.notValidProb",
+                  with: [String(value)],
+                });
+                return;
+              }
               config.prob = value;
               world.setDynamicProperty(
                 utils.WorldDynamicID,
                 JSON.stringify(config)
               );
               world.sendMessage({
-                translate: "emi.totems.system.setProb",
+                translate: "emi.totems.cmd.setProb",
                 with: [String(value)],
               });
               break;
             case "cost":
+              if (value < 1) {
+                world.sendMessage({
+                  translate: "emi.totems.cmd.notValidCost",
+                  with: [String(value)],
+                });
+                return;
+              }
               config.cost = value;
               world.setDynamicProperty(
                 utils.WorldDynamicID,
                 JSON.stringify(config)
               );
               world.sendMessage({
-                translate: "emi.totems.system.setCost",
+                translate: "emi.totems.cmd.setCost",
                 with: [String(value)],
               });
               break;
@@ -147,3 +163,5 @@ class WorldInit {
     );
   }
 }
+
+new WorldInit();
