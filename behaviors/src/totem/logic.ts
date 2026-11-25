@@ -93,32 +93,31 @@ class TotemLogic {
    * @author Emiliocrack1355 - 23/11/26 <06:48 pm>
    */
   public onConsumeTotem(player: Player, totemData: TotemData): void {
+    if (!totemData.hasStack) return;
     const equip = player.getComponent(EntityComponentTypes.Equippable);
     if (!equip) return;
-    if (totemData.hasStack) {
-      if (totemData.handAmount > 0) {
-        const newHandItem = totemData.handItem.clone();
-        newHandItem.amount = totemData.handAmount;
-        equip.setEquipment(totemData.hand, newHandItem);
-      } else {
-        equip.setEquipment(totemData.hand, undefined);
-      }
-      if (totemData.inv) {
-        const inv = player.getComponent(
-          EntityComponentTypes.Inventory
-        )?.container;
-        if (!inv) return;
-        for (const { slot, amount } of totemData.inv) {
-          const it = inv.getItem(slot);
-          if (!it) return;
-          const remaining = it.amount - amount;
-          if (remaining > 0) {
-            const newItem = it.clone();
-            newItem.amount = remaining;
-            inv.setItem(slot, newItem);
-          } else {
-            inv.setItem(slot, undefined);
-          }
+    if (totemData.handAmount > 0) {
+      const newHandItem = totemData.handItem.clone();
+      newHandItem.amount = totemData.handAmount;
+      equip.setEquipment(totemData.hand, newHandItem);
+    } else {
+      equip.setEquipment(totemData.hand, undefined);
+    }
+    if (totemData.inv) {
+      const inv = player.getComponent(
+        EntityComponentTypes.Inventory
+      )?.container;
+      if (!inv) return;
+      for (const { slot, amount } of totemData.inv) {
+        const it = inv.getItem(slot);
+        if (!it) return;
+        const remaining = it.amount - Math.min(amount, it.amount);
+        if (remaining > 0) {
+          const newItem = it.clone();
+          newItem.amount = remaining;
+          inv.setItem(slot, newItem);
+        } else {
+          inv.setItem(slot, undefined);
         }
       }
     }

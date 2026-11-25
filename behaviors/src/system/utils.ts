@@ -123,23 +123,20 @@ class Utils {
     const itemsInv: { slot: number; amount: number }[] = [];
     for (let i = 0; i < inv.size; i++) {
       if (reqs <= 0) break;
+      if (slot === EquipmentSlot.Mainhand && i === player.selectedSlotIndex)
+        continue;
       const it = inv.getItem(i);
       if (!it || it.typeId !== this.totem) continue;
-      if (it.amount < reqs) {
-        reqs -= it.amount;
-        itemsInv.push({ slot: i, amount: it.amount });
-      } else {
-        itemsInv.push({ slot: i, amount: reqs });
-        reqs = 0;
-        break;
-      }
+      const take = Math.min(it.amount, reqs);
+      itemsInv.push({ slot: i, amount: take });
+      reqs -= take;
     }
     return reqs <= 0
       ? {
           hasStack: true,
           hand: slot,
           handItem: item,
-          handAmount: amount,
+          handAmount: 0,
           inv: itemsInv,
         }
       : { hasStack: false };

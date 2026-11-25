@@ -6394,32 +6394,31 @@ var init_logic = __esm({
        * @author Emiliocrack1355 - 23/11/26 <06:48 pm>
        */
       onConsumeTotem(player, totemData) {
+        if (!totemData.hasStack) return;
         const equip = player.getComponent(EntityComponentTypes2.Equippable);
         if (!equip) return;
-        if (totemData.hasStack) {
-          if (totemData.handAmount > 0) {
-            const newHandItem = totemData.handItem.clone();
-            newHandItem.amount = totemData.handAmount;
-            equip.setEquipment(totemData.hand, newHandItem);
-          } else {
-            equip.setEquipment(totemData.hand, void 0);
-          }
-          if (totemData.inv) {
-            const inv = player.getComponent(
-              EntityComponentTypes2.Inventory
-            )?.container;
-            if (!inv) return;
-            for (const { slot, amount } of totemData.inv) {
-              const it = inv.getItem(slot);
-              if (!it) return;
-              const remaining = it.amount - amount;
-              if (remaining > 0) {
-                const newItem = it.clone();
-                newItem.amount = remaining;
-                inv.setItem(slot, newItem);
-              } else {
-                inv.setItem(slot, void 0);
-              }
+        if (totemData.handAmount > 0) {
+          const newHandItem = totemData.handItem.clone();
+          newHandItem.amount = totemData.handAmount;
+          equip.setEquipment(totemData.hand, newHandItem);
+        } else {
+          equip.setEquipment(totemData.hand, void 0);
+        }
+        if (totemData.inv) {
+          const inv = player.getComponent(
+            EntityComponentTypes2.Inventory
+          )?.container;
+          if (!inv) return;
+          for (const { slot, amount } of totemData.inv) {
+            const it = inv.getItem(slot);
+            if (!it) return;
+            const remaining = it.amount - Math.min(amount, it.amount);
+            if (remaining > 0) {
+              const newItem = it.clone();
+              newItem.amount = remaining;
+              inv.setItem(slot, newItem);
+            } else {
+              inv.setItem(slot, void 0);
             }
           }
         }
@@ -6532,22 +6531,19 @@ var init_utils = __esm({
         const itemsInv = [];
         for (let i = 0; i < inv.size; i++) {
           if (reqs <= 0) break;
+          if (slot === EquipmentSlot2.Mainhand && i === player.selectedSlotIndex)
+            continue;
           const it = inv.getItem(i);
           if (!it || it.typeId !== this.totem) continue;
-          if (it.amount < reqs) {
-            reqs -= it.amount;
-            itemsInv.push({ slot: i, amount: it.amount });
-          } else {
-            itemsInv.push({ slot: i, amount: reqs });
-            reqs = 0;
-            break;
-          }
+          const take = Math.min(it.amount, reqs);
+          itemsInv.push({ slot: i, amount: take });
+          reqs -= take;
         }
         return reqs <= 0 ? {
           hasStack: true,
           hand: slot,
           handItem: item,
-          handAmount: amount,
+          handAmount: 0,
           inv: itemsInv
         } : { hasStack: false };
       }
