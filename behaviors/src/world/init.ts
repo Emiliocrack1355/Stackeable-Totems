@@ -34,7 +34,7 @@ class WorldInit {
    * @private
    * @author Emiliocrack1355 - 23/11/26 <06:00 pm>
    */
-  private readonly AddonBeta = true;
+  private readonly AddonBeta = false;
   constructor() {
     this.onWorldInit();
     this.onPlayerSpawn();
