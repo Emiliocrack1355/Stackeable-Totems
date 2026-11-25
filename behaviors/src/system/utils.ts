@@ -1,5 +1,6 @@
 import {
   EntityComponentTypes,
+  EntityHealBeforeEvent,
   EquipmentSlot,
   ItemStack,
   Player,
@@ -158,8 +159,10 @@ class Utils {
   public failedTotem(
     player: Player,
     totemData: TotemData,
+    ev: EntityHealBeforeEvent,
     probData?: ProbData
   ): void {
+    ev.cancel = true;
     if (!totemData.hasStack) {
       world.sendMessage({
         translate: "emi.totems.useTotem.notEnought",

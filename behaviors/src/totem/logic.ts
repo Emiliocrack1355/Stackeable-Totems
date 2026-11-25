@@ -1,6 +1,7 @@
 import {
   Entity,
   EntityComponentTypes,
+  EntityHealBeforeEvent,
   EntityHealCause,
   Player,
   world,
@@ -31,7 +32,7 @@ class TotemLogic {
       if (healSource.cause !== EntityHealCause.TotemOfUndying) return;
       const data = utils.getHandTotem(healedEntity);
       if (!data) return;
-      this.onUseTotem(healedEntity, data);
+      this.onUseTotem(healedEntity, data, ev);
     });
   }
 
@@ -43,7 +44,11 @@ class TotemLogic {
    * @private
    * @author Emiliocrack1355 - 23/11/26 <06:33 pm>
    */
-  private onUseTotem(player: Player, data: HandData): void {
+  private onUseTotem(
+    player: Player,
+    data: HandData,
+    ev: EntityHealBeforeEvent
+  ): void {
     const raw = world.getDynamicProperty(utils.WorldDynamicID);
     let config: { prob: number; cost: number } = { prob: 0, cost: 1 };
     if (typeof raw === "string") {
@@ -62,7 +67,7 @@ class TotemLogic {
       config.cost
     );
     if (!totemData.hasStack) {
-      utils.failedTotem(player, totemData);
+      utils.failedTotem(player, totemData, ev);
       return;
     }
     let probData: ProbData | undefined;
@@ -74,7 +79,7 @@ class TotemLogic {
         prob: config.prob,
       };
     }
-    if (probData?.hasFailed) utils.failedTotem(player, totemData, probData);
+    if (probData?.hasFailed) utils.failedTotem(player, totemData, ev, probData);
     else utils.successTotem(player, totemData, probData);
   }
 
