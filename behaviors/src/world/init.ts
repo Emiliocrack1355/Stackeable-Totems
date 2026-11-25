@@ -77,7 +77,7 @@ class WorldInit {
             translate: "emi.totems.system.welcome",
             with: [this.AddonVer, this.AddonBeta ? "-beta" : ""],
           });
-        }, worldToolsSimplified.convertSecondsToTicks(30));
+        }, worldToolsSimplified.convertSecondsToTicks(20));
       }
     });
   }
